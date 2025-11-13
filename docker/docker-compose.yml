@@ -65,7 +65,9 @@ services:
   # AWS Lambda container running our API
   # Uses DuckDB for queries, Iceberg for table format, S3 for storage
   lambda-api:
-    build: .
+    build:
+      context: ..
+      dockerfile: Dockerfile
     container_name: s3-acid-lambda
     ports:
       - "8080:8080"  # Lambda Runtime Interface Emulator
@@ -92,7 +94,7 @@ services:
         condition: service_started
     volumes:
       - ../src:/var/task/src:ro
-      - ../config/config.json:/var/task/config.json:ro
+      - ../config:/var/task/config:ro
     networks:
       - acid-network
     healthcheck:

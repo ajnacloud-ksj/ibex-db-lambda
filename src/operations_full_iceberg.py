@@ -109,6 +109,9 @@ class FullIcebergOperations:
 
         conn = duckdb.connect(':memory:')
 
+        # Set home directory for extensions (fixes Lambda/Docker issue)
+        conn.execute("SET home_directory='/tmp';")
+
         # Load extensions
         conn.execute("INSTALL iceberg;")
         conn.execute("INSTALL httpfs;")
