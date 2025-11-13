@@ -1,4 +1,4 @@
-⁠  # AWS Lambda Python runtime with uv for dependency management
+# AWS Lambda Python runtime with uv for dependency management
 FROM public.ecr.aws/lambda/python:3.11
 
 # Install uv for fast Python package management
