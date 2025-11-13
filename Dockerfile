@@ -1,5 +1,6 @@
 # AWS Lambda Python runtime with uv for dependency management
-FROM public.ecr.aws/lambda/python:3.11
+# Using Python 3.12+ for Amazon Linux 2023 with GLIBC 2.34 (required by DuckDB iceberg extension)
+FROM public.ecr.aws/lambda/python:3.12
 
 # Install uv for fast Python package management
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
