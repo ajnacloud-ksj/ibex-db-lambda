@@ -1,0 +1,24 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - echo ${AWS_REGION} ${AWS_ACCOUNT_ID} ${PROJECT_NAME} ${TAG_NAME}
+      - aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+  pre_build:
+    commands:
+      - echo Building the Docker image...
+      - >
+        REPO_EXISTS=$(aws ecr describe-repositories --repository-names ${PROJECT_NAME} --region ${AWS_REGION} 2>&1 || echo "not found");
+        if [[ $REPO_EXISTS == *"not found"* ]]; then
+          aws ecr create-repository --repository-name ${PROJECT_NAME} --region ${AWS_REGION}
+        fi
+  build:
+    commands:
+     - docker build -t ${PROJECT_NAME} .
+  post_build:
+    commands:
+      - echo Pushing the Docker image to ECR...
+      - docker tag ${PROJECT_NAME}:latest ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${PROJECT_NAME}:${TAG_NAME}
+      - docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${PROJECT_NAME}:${TAG_NAME}
