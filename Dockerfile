@@ -8,7 +8,8 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 COPY pyproject.toml README.md ./
 
 # Install dependencies with uv using pyproject.toml
-RUN uv pip install --system --no-cache -e .
+# Use --only-binary to force pre-built wheels (faster, smaller image)
+RUN uv pip install --system --no-cache --only-binary :all: -e .
 
 # Install DuckDB Iceberg extensions
 # Pre-install all necessary extensions at build time
