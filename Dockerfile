@@ -1,18 +1,14 @@
-# AWS Lambda Python runtime with uv for dependency management
+⁠  # AWS Lambda Python runtime with uv for dependency management
 FROM public.ecr.aws/lambda/python:3.11
 
 # Install uv for fast Python package management
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 # Copy dependency files
-COPY pyproject.toml requirements.txt* ./
+COPY pyproject.toml README.md ./
 
-# Install dependencies with uv (using requirements.txt if it exists, else pyproject.toml)
-RUN if [ -f requirements.txt ]; then \
-        uv pip install --system -r requirements.txt; \
-    else \
-        uv pip install --system -r pyproject.toml; \
-    fi
+# Install dependencies with uv using pyproject.toml
+RUN uv pip install --system --no-cache -e .
 
 # Install DuckDB Iceberg extensions
 # Pre-install all necessary extensions at build time
@@ -34,6 +30,7 @@ RUN python3 -c "import duckdb; \
 
 # Copy application code
 COPY src/ ${LAMBDA_TASK_ROOT}/src/
+COPY config/config.json ${LAMBDA_TASK_ROOT}/config.json
 
 # Set environment variables (can be overridden)
 ENV PYTHONPATH="${LAMBDA_TASK_ROOT}/src:${PYTHONPATH}"
