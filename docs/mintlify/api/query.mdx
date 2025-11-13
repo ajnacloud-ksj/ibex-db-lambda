@@ -1,0 +1,135 @@
+---
+title: QUERY
+description: 'Query data with filters, aggregations, and sorting'
+---
+
+# QUERY Operation
+
+The most powerful operation - supports filtering, aggregations, GROUP BY, and more.
+
+## Basic Query
+
+```json
+{
+  "operation": "QUERY",
+  "tenant_id": "my-tenant",
+  "table": "users"
+}
+```
+
+## With Filters
+
+```json
+{
+  "operation": "QUERY",
+  "tenant_id": "my-tenant",
+  "table": "users",
+  "filter": {
+    "age": {"gte": 25, "lte": 35},
+    "department": {"in": ["Engineering", "Sales"]}
+  }
+}
+```
+
+### Filter Operators
+
+- `eq` - Equal to
+- `ne` - Not equal
+- `gt`, `gte` - Greater than (or equal)
+- `lt`, `lte` - Less than (or equal)
+- `in` - Value in list
+- `like` - Pattern matching
+- `between` - Between two values
+
+## Column Selection
+
+```json
+{
+  "operation": "QUERY",
+  "tenant_id": "my-tenant",
+  "table": "users",
+  "projection": ["name", "email", "department"]
+}
+```
+
+<Tip>
+Only fetch columns you need to reduce data transfer!
+</Tip>
+
+## Aggregations
+
+```json
+{
+  "operation": "QUERY",
+  "tenant_id": "my-tenant",
+  "table": "sales",
+  "projection": ["region"],
+  "aggregations": [
+    {"op": "count", "field": null, "alias": "orders"},
+    {"op": "sum", "field": "revenue", "alias": "total_revenue"},
+    {"op": "avg", "field": "revenue", "alias": "avg_revenue"}
+  ],
+  "group_by": ["region"]
+}
+```
+
+### Aggregation Functions
+
+- `count` - Count rows
+- `sum` - Sum values
+- `avg` - Average
+- `min` - Minimum
+- `max` - Maximum
+- `stddev` - Standard deviation
+- `variance` - Variance
+- `median` - Median
+
+## Sorting & Pagination
+
+```json
+{
+  "operation": "QUERY",
+  "tenant_id": "my-tenant",
+  "table": "users",
+  "sort": [
+    {"field": "age", "order": "desc"}
+  ],
+  "limit": 10,
+  "offset": 0
+}
+```
+
+## Complete Example
+
+```json
+{
+  "operation": "QUERY",
+  "tenant_id": "acme-corp",
+  "table": "orders",
+  "filter": {
+    "status": {"eq": "completed"},
+    "created_at": {"gte": "2024-01-01"}
+  },
+  "projection": ["region", "product_category"],
+  "aggregations": [
+    {"op": "count", "field": null, "alias": "order_count"},
+    {"op": "sum", "field": "amount", "alias": "total_revenue"}
+  ],
+  "group_by": ["region", "product_category"],
+  "having": {
+    "total_revenue": {"gt": 10000}
+  },
+  "sort": [
+    {"field": "total_revenue", "order": "desc"}
+  ],
+  "limit": 20
+}
+```
+
+This query:
+1. Filters completed orders from 2024
+2. Groups by region and category
+3. Counts orders and sums revenue
+4. Only shows groups with revenue > $10k
+5. Sorts by revenue
+6. Returns top 20 results

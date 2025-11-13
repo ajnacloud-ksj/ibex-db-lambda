@@ -1,0 +1,70 @@
+---
+title: API Overview
+description: 'Complete API reference'
+---
+
+# API Overview
+
+All operations use a single endpoint: `/database`
+
+## Request Format
+
+```json
+{
+  "operation": "OPERATION_NAME",
+  "tenant_id": "your-tenant",
+  "namespace": "default",
+  "table": "table_name",
+  ...additional parameters
+}
+```
+
+## Available Operations
+
+| Operation | Description |
+|-----------|-------------|
+| `CREATE_TABLE` | Create new Iceberg table |
+| `WRITE` | Insert records (ACID) |
+| `QUERY` | Query with filters, aggregations |
+| `UPDATE` | Update records by filter |
+| `DELETE` | Soft delete (recoverable) |
+| `HARD_DELETE` | Permanent deletion |
+| `LIST_TABLES` | List all tables |
+| `DESCRIBE_TABLE` | Get table schema |
+| `COMPACT` | Merge small files |
+
+## Response Format
+
+```json
+{
+  "success": true,
+  "data": [...],
+  "metadata": {
+    "row_count": 10,
+    "execution_time_ms": 45
+  },
+  "error": null
+}
+```
+
+## Error Handling
+
+Errors return:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human-readable message",
+    "details": {}
+  }
+}
+```
+
+## Authentication
+
+Set `tenant_id` in all requests for multi-tenant isolation.
+
+<Note>
+Add your own authentication middleware (JWT, API keys) as needed.
+</Note>

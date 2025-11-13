@@ -1,0 +1,174 @@
+---
+title: Basic CRUD
+description: 'Complete CRUD workflow example'
+---
+
+# Basic CRUD Operations
+
+Complete example workflow using all basic operations.
+
+## 1. Create Table
+
+```bash
+curl -X POST http://localhost:9000/database \
+  -H "Content-Type: application/json" \
+  -d '{
+    "operation": "CREATE_TABLE",
+    "tenant_id": "demo",
+    "table": "products",
+    "schema": {
+      "fields": {
+        "product_id": {"type": "string", "required": true},
+        "name": {"type": "string", "required": true},
+        "price": {"type": "double", "required": true},
+        "category": {"type": "string", "required": true},
+        "in_stock": {"type": "boolean", "required": true}
+      }
+    }
+  }'
+```
+
+## 2. Insert Data
+
+```bash
+curl -X POST http://localhost:9000/database \
+  -H "Content-Type: application/json" \
+  -d '{
+    "operation": "WRITE",
+    "tenant_id": "demo",
+    "table": "products",
+    "records": [
+      {"product_id": "P001", "name": "Laptop", "price": 1200.00, "category": "Electronics", "in_stock": true},
+      {"product_id": "P002", "name": "Mouse", "price": 25.00, "category": "Electronics", "in_stock": true},
+      {"product_id": "P003", "name": "Desk", "price": 450.00, "category": "Furniture", "in_stock": false}
+    ]
+  }'
+```
+
+## 3. Query All
+
+```bash
+curl -X POST http://localhost:9000/database \
+  -H "Content-Type: application/json" \
+  -d '{
+    "operation": "QUERY",
+    "tenant_id": "demo",
+    "table": "products"
+  }'
+```
+
+## 4. Query with Filter
+
+```bash
+curl -X POST http://localhost:9000/database \
+  -H "Content-Type: application/json" \
+  -d '{
+    "operation": "QUERY",
+    "tenant_id": "demo",
+    "table": "products",
+    "filter": {
+      "category": {"eq": "Electronics"},
+      "in_stock": {"eq": true}
+    }
+  }'
+```
+
+## 5. Update Product
+
+```bash
+curl -X POST http://localhost:9000/database \
+  -H "Content-Type: application/json" \
+  -d '{
+    "operation": "UPDATE",
+    "tenant_id": "demo",
+    "table": "products",
+    "filter": {"product_id": {"eq": "P001"}},
+    "updates": {"price": 1100.00}
+  }'
+```
+
+## 6. Soft Delete
+
+```bash
+curl -X POST http://localhost:9000/database \
+  -H "Content-Type: application/json" \
+  -d '{
+    "operation": "DELETE",
+    "tenant_id": "demo",
+    "table": "products",
+    "filter": {"product_id": {"eq": "P003"}}
+  }'
+```
+
+## 7. Query Excluding Deleted
+
+```bash
+curl -X POST http://localhost:9000/database \
+  -H "Content-Type: application/json" \
+  -d '{
+    "operation": "QUERY",
+    "tenant_id": "demo",
+    "table": "products",
+    "include_deleted": false
+  }'
+```
+
+<Check>
+**Result:** Only P001 and P002 (P003 is soft-deleted)
+</Check>
+
+## 8. View Including Deleted
+
+```bash
+curl -X POST http://localhost:9000/database \
+  -H "Content-Type: application/json" \
+  -d '{
+    "operation": "QUERY",
+    "tenant_id": "demo",
+    "table": "products",
+    "include_deleted": true,
+    "projection": ["product_id", "name", "_deleted"]
+  }'
+```
+
+<Check>
+**Result:** All three products, P003 has `_deleted: true`
+</Check>
+
+## Complete Python Example
+
+```python
+import requests
+
+BASE_URL = "http://localhost:9000/database"
+TENANT = "demo"
+
+def api_call(payload):
+    return requests.post(BASE_URL, json=payload).json()
+
+# Create
+api_call({
+    "operation": "CREATE_TABLE",
+    "tenant_id": TENANT,
+    "table": "products",
+    "schema": {...}
+})
+
+# Insert
+api_call({
+    "operation": "WRITE",
+    "tenant_id": TENANT,
+    "table": "products",
+    "records": [...]
+})
+
+# Query
+result = api_call({
+    "operation": "QUERY",
+    "tenant_id": TENANT,
+    "table": "products",
+    "filter": {"category": {"eq": "Electronics"}}
+})
+
+print(f"Found {result['metadata']['row_count']} products")
+```

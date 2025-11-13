@@ -1,0 +1,345 @@
+{
+  "info": {
+    "name": "S3 ACID Database - Full Iceberg",
+    "description": "Complete API collection for S3 ACID Database with Apache Iceberg, PyIceberg for writes and DuckDB for reads\n\nEnvironment Variables:\n- baseUrl: API base URL\n- lambdaPath: Lambda invocation path\n- tenant_id: Tenant identifier\n- namespace: Table namespace\n- protocol: http or https\n- host: hostname\n- port: port number",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"httpMethod\": \"GET\",\n  \"path\": \"/health\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}{{lambdaPath}}",
+          "protocol": "{{protocol}}",
+          "host": [
+            "{{host}}"
+          ],
+          "port": "{{port}}",
+          "path": [
+            "{{lambdaPath}}"
+          ]
+        },
+        "description": "Check if the Lambda API is healthy"
+      }
+    },
+    {
+      "name": "1. CREATE TABLE - users",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"httpMethod\": \"POST\",\n  \"path\": \"/database\",\n  \"body\": \"{\\\"operation\\\": \\\"CREATE_TABLE\\\", \\\"tenant_id\\\": \\\"{{tenant_id}}\\\", \\\"namespace\\\": \\\"{{namespace}}\\\", \\\"table\\\": \\\"users\\\", \\\"schema\\\": {\\\"fields\\\": {\\\"name\\\": {\\\"type\\\": \\\"string\\\", \\\"required\\\": true}, \\\"email\\\": {\\\"type\\\": \\\"string\\\", \\\"required\\\": true}, \\\"age\\\": {\\\"type\\\": \\\"integer\\\", \\\"required\\\": false}}}, \\\"if_not_exists\\\": true}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}{{lambdaPath}}",
+          "protocol": "{{protocol}}",
+          "host": [
+            "{{host}}"
+          ],
+          "port": "{{port}}",
+          "path": [
+            "{{lambdaPath}}"
+          ]
+        },
+        "description": "Create Iceberg table with schema using PyIceberg"
+      }
+    },
+    {
+      "name": "2. WRITE - Insert users",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"httpMethod\": \"POST\",\n  \"path\": \"/database\",\n  \"body\": \"{\\\"operation\\\": \\\"WRITE\\\", \\\"tenant_id\\\": \\\"{{tenant_id}}\\\", \\\"namespace\\\": \\\"{{namespace}}\\\", \\\"table\\\": \\\"users\\\", \\\"records\\\": [{\\\"name\\\": \\\"Alice\\\", \\\"email\\\": \\\"alice@example.com\\\", \\\"age\\\": 30}, {\\\"name\\\": \\\"Bob\\\", \\\"email\\\": \\\"bob@example.com\\\", \\\"age\\\": 25}, {\\\"name\\\": \\\"Charlie\\\", \\\"email\\\": \\\"charlie@example.com\\\", \\\"age\\\": 35}]}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}{{lambdaPath}}",
+          "protocol": "{{protocol}}",
+          "host": [
+            "{{host}}"
+          ],
+          "port": "{{port}}",
+          "path": [
+            "{{lambdaPath}}"
+          ]
+        },
+        "description": "Write records to Iceberg table using PyIceberg"
+      }
+    },
+    {
+      "name": "3. QUERY - Get all users",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"httpMethod\": \"POST\",\n  \"path\": \"/database\",\n  \"body\": \"{\\\"operation\\\": \\\"QUERY\\\", \\\"tenant_id\\\": \\\"{{tenant_id}}\\\", \\\"namespace\\\": \\\"{{namespace}}\\\", \\\"table\\\": \\\"users\\\", \\\"limit\\\": 100}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}{{lambdaPath}}",
+          "protocol": "{{protocol}}",
+          "host": [
+            "{{host}}"
+          ],
+          "port": "{{port}}",
+          "path": [
+            "{{lambdaPath}}"
+          ]
+        },
+        "description": "Query all users using DuckDB iceberg_scan"
+      }
+    },
+    {
+      "name": "4. QUERY - Filter by name",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"httpMethod\": \"POST\",\n  \"path\": \"/database\",\n  \"body\": \"{\\\"operation\\\": \\\"QUERY\\\", \\\"tenant_id\\\": \\\"{{tenant_id}}\\\", \\\"namespace\\\": \\\"{{namespace}}\\\", \\\"table\\\": \\\"users\\\", \\\"filter\\\": {\\\"name\\\": {\\\"eq\\\": \\\"Alice\\\"}}, \\\"limit\\\": 10}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}{{lambdaPath}}",
+          "protocol": "{{protocol}}",
+          "host": [
+            "{{host}}"
+          ],
+          "port": "{{port}}",
+          "path": [
+            "{{lambdaPath}}"
+          ]
+        },
+        "description": "Query users with filter - name equals Alice"
+      }
+    },
+    {
+      "name": "5. QUERY - Filter by age greater than",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"httpMethod\": \"POST\",\n  \"path\": \"/database\",\n  \"body\": \"{\\\"operation\\\": \\\"QUERY\\\", \\\"tenant_id\\\": \\\"{{tenant_id}}\\\", \\\"namespace\\\": \\\"{{namespace}}\\\", \\\"table\\\": \\\"users\\\", \\\"filter\\\": {\\\"age\\\": {\\\"gt\\\": 28}}, \\\"limit\\\": 10}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}{{lambdaPath}}",
+          "protocol": "{{protocol}}",
+          "host": [
+            "{{host}}"
+          ],
+          "port": "{{port}}",
+          "path": [
+            "{{lambdaPath}}"
+          ]
+        },
+        "description": "Query users where age > 28"
+      }
+    },
+    {
+      "name": "6. QUERY - With sorting",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"httpMethod\": \"POST\",\n  \"path\": \"/database\",\n  \"body\": \"{\\\"operation\\\": \\\"QUERY\\\", \\\"tenant_id\\\": \\\"{{tenant_id}}\\\", \\\"namespace\\\": \\\"{{namespace}}\\\", \\\"table\\\": \\\"users\\\", \\\"sort\\\": [{\\\"field\\\": \\\"age\\\", \\\"order\\\": \\\"desc\\\"}], \\\"limit\\\": 10}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}{{lambdaPath}}",
+          "protocol": "{{protocol}}",
+          "host": [
+            "{{host}}"
+          ],
+          "port": "{{port}}",
+          "path": [
+            "{{lambdaPath}}"
+          ]
+        },
+        "description": "Query users sorted by age descending"
+      }
+    },
+    {
+      "name": "7. UPDATE - Update user age",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"httpMethod\": \"POST\",\n  \"path\": \"/database\",\n  \"body\": \"{\\\"operation\\\": \\\"UPDATE\\\", \\\"tenant_id\\\": \\\"{{tenant_id}}\\\", \\\"namespace\\\": \\\"{{namespace}}\\\", \\\"table\\\": \\\"users\\\", \\\"updates\\\": {\\\"age\\\": 31}, \\\"filter\\\": {\\\"name\\\": {\\\"eq\\\": \\\"Alice\\\"}}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}{{lambdaPath}}",
+          "protocol": "{{protocol}}",
+          "host": [
+            "{{host}}"
+          ],
+          "port": "{{port}}",
+          "path": [
+            "{{lambdaPath}}"
+          ]
+        },
+        "description": "Update Alice's age to 31"
+      }
+    },
+    {
+      "name": "8. DELETE - Soft delete user",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"httpMethod\": \"POST\",\n  \"path\": \"/database\",\n  \"body\": \"{\\\"operation\\\": \\\"DELETE\\\", \\\"tenant_id\\\": \\\"{{tenant_id}}\\\", \\\"namespace\\\": \\\"{{namespace}}\\\", \\\"table\\\": \\\"users\\\", \\\"filter\\\": {\\\"name\\\": {\\\"eq\\\": \\\"Charlie\\\"}}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}{{lambdaPath}}",
+          "protocol": "{{protocol}}",
+          "host": [
+            "{{host}}"
+          ],
+          "port": "{{port}}",
+          "path": [
+            "{{lambdaPath}}"
+          ]
+        },
+        "description": "Soft delete Charlie (marks _deleted=true)"
+      }
+    },
+    {
+      "name": "9. LIST TABLES",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"httpMethod\": \"POST\",\n  \"path\": \"/database\",\n  \"body\": \"{\\\"operation\\\": \\\"LIST_TABLES\\\", \\\"tenant_id\\\": \\\"{{tenant_id}}\\\", \\\"namespace\\\": \\\"{{namespace}}\\\"}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}{{lambdaPath}}",
+          "protocol": "{{protocol}}",
+          "host": [
+            "{{host}}"
+          ],
+          "port": "{{port}}",
+          "path": [
+            "{{lambdaPath}}"
+          ]
+        },
+        "description": "List all tables in namespace"
+      }
+    },
+    {
+      "name": "10. DESCRIBE TABLE",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"httpMethod\": \"POST\",\n  \"path\": \"/database\",\n  \"body\": \"{\\\"operation\\\": \\\"DESCRIBE_TABLE\\\", \\\"tenant_id\\\": \\\"{{tenant_id}}\\\", \\\"namespace\\\": \\\"{{namespace}}\\\", \\\"table\\\": \\\"users\\\"}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}{{lambdaPath}}",
+          "protocol": "{{protocol}}",
+          "host": [
+            "{{host}}"
+          ],
+          "port": "{{port}}",
+          "path": [
+            "{{lambdaPath}}"
+          ]
+        },
+        "description": "Get table schema and statistics"
+      }
+    },
+    {
+      "name": "11. COMPACT - Merge small files",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"httpMethod\": \"POST\",\n  \"path\": \"/database\",\n  \"body\": \"{\\\"operation\\\": \\\"COMPACT\\\", \\\"tenant_id\\\": \\\"{{tenant_id}}\\\", \\\"namespace\\\": \\\"{{namespace}}\\\", \\\"table\\\": \\\"users\\\", \\\"force\\\": false, \\\"expire_snapshots\\\": true, \\\"snapshot_retention_hours\\\": 168}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}{{lambdaPath}}",
+          "protocol": "{{protocol}}",
+          "host": [
+            "{{host}}"
+          ],
+          "port": "{{port}}",
+          "path": [
+            "{{lambdaPath}}"
+          ]
+        },
+        "description": "Compact small files into larger files to improve query performance. This addresses the small files problem by merging many tiny files into optimally-sized larger files."
+      }
+    }
+  ]
+}

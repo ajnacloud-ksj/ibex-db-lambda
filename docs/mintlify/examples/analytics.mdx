@@ -1,0 +1,174 @@
+---
+title: Analytics Queries
+description: 'Real-world analytics examples'
+---
+
+# Analytics Queries
+
+Real-world examples of analytical queries with aggregations.
+
+## Sales Analytics
+
+### Revenue by Region
+
+```json
+{
+  "operation": "QUERY",
+  "tenant_id": "acme-corp",
+  "table": "sales",
+  "projection": ["region"],
+  "aggregations": [
+    {"op": "count", "field": null, "alias": "order_count"},
+    {"op": "sum", "field": "amount", "alias": "total_revenue"},
+    {"op": "avg", "field": "amount", "alias": "avg_order_value"}
+  ],
+  "group_by": ["region"],
+  "sort": [{"field": "total_revenue", "order": "desc"}]
+}
+```
+
+**Result:**
+```json
+[
+  {"region": "East", "order_count": 1250, "total_revenue": 524000, "avg_order_value": 419.20},
+  {"region": "West", "order_count": 980, "total_revenue": 445000, "avg_order_value": 454.08}
+]
+```
+
+### Top Products
+
+```json
+{
+  "operation": "QUERY",
+  "tenant_id": "acme-corp",
+  "table": "sales",
+  "projection": ["product_name"],
+  "aggregations": [
+    {"op": "sum", "field": "quantity", "alias": "units_sold"},
+    {"op": "sum", "field": "amount", "alias": "revenue"}
+  ],
+  "group_by": ["product_name"],
+  "having": {"units_sold": {"gt": 100}},
+  "sort": [{"field": "revenue", "order": "desc"}],
+  "limit": 10
+}
+```
+
+## Employee Analytics
+
+### Department Headcount & Payroll
+
+```json
+{
+  "operation": "QUERY",
+  "tenant_id": "company",
+  "table": "employees",
+  "projection": ["department"],
+  "aggregations": [
+    {"op": "count", "field": null, "alias": "headcount"},
+    {"op": "sum", "field": "salary", "alias": "total_payroll"},
+    {"op": "avg", "field": "salary", "alias": "avg_salary"},
+    {"op": "min", "field": "salary", "alias": "min_salary"},
+    {"op": "max", "field": "salary", "alias": "max_salary"}
+  ],
+  "group_by": ["department"]
+}
+```
+
+### High Performers
+
+```json
+{
+  "operation": "QUERY",
+  "tenant_id": "company",
+  "table": "employees",
+  "filter": {
+    "performance_rating": {"gte": 4.5},
+    "years_at_company": {"gt": 2}
+  },
+  "projection": ["name", "department", "salary", "performance_rating"],
+  "sort": [{"field": "performance_rating", "order": "desc"}],
+  "limit": 20
+}
+```
+
+## Customer Analytics
+
+### Customer Lifetime Value
+
+```json
+{
+  "operation": "QUERY",
+  "tenant_id": "ecommerce",
+  "table": "orders",
+  "filter": {"status": {"eq": "completed"}},
+  "projection": ["customer_id"],
+  "aggregations": [
+    {"op": "count", "field": null, "alias": "total_orders"},
+    {"op": "sum", "field": "amount", "alias": "lifetime_value"},
+    {"op": "avg", "field": "amount", "alias": "avg_order_value"}
+  ],
+  "group_by": ["customer_id"],
+  "having": {"lifetime_value": {"gt": 1000}},
+  "sort": [{"field": "lifetime_value", "order": "desc"}]
+}
+```
+
+### Monthly Trends
+
+```json
+{
+  "operation": "QUERY",
+  "tenant_id": "ecommerce",
+  "table": "orders",
+  "projection": ["order_month"],
+  "aggregations": [
+    {"op": "count", "field": null, "alias": "orders"},
+    {"op": "sum", "field": "amount", "alias": "revenue"},
+    {"op": "count", "field": "customer_id", "alias": "unique_customers", "distinct": true}
+  ],
+  "group_by": ["order_month"],
+  "sort": [{"field": "order_month", "order": "asc"}]
+}
+```
+
+<Tip>
+Combine with column selection to only fetch needed fields and reduce data transfer!
+</Tip>
+
+## Complex Multi-Level Analysis
+
+```json
+{
+  "operation": "QUERY",
+  "tenant_id": "retail",
+  "table": "sales",
+  "filter": {
+    "date": {"gte": "2024-01-01"},
+    "status": {"eq": "completed"}
+  },
+  "projection": ["region", "product_category"],
+  "aggregations": [
+    {"op": "count", "field": null, "alias": "transactions"},
+    {"op": "sum", "field": "quantity * price", "alias": "gross_revenue"},
+    {"op": "sum", "field": "discount_amount", "alias": "total_discounts"},
+    {"op": "avg", "field": "quantity", "alias": "avg_basket_size"}
+  ],
+  "group_by": ["region", "product_category"],
+  "having": {
+    "transactions": {"gte": 50},
+    "gross_revenue": {"gt": 10000}
+  },
+  "sort": [
+    {"field": "region", "order": "asc"},
+    {"field": "gross_revenue", "order": "desc"}
+  ]
+}
+```
+
+This query:
+1. Filters for 2024 completed orders
+2. Groups by region and category
+3. Calculates multiple metrics
+4. Only shows high-volume segments
+5. Sorts for easy analysis

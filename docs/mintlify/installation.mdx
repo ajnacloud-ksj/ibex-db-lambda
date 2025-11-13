@@ -1,0 +1,81 @@
+---
+title: Installation
+description: 'Deploy to production or run locally'
+---
+
+# Installation
+
+Choose your deployment method based on your needs.
+
+## Local Development (Docker)
+
+```bash
+cd docker
+docker compose up -d fastapi
+```
+
+**Services started:**
+- FastAPI: http://localhost:9000
+- MinIO Console: http://localhost:9006
+- REST Catalog: http://localhost:8181
+
+## Production (AWS Lambda)
+
+<Steps>
+  <Step title="Set environment variables">
+    ```bash
+    export ENVIRONMENT=production
+    export BUCKET_NAME=your-bucket
+    export AWS_REGION=us-east-1
+    export AWS_ACCOUNT_ID=123456789012
+    ```
+  </Step>
+
+  <Step title="Build Docker image">
+    ```bash
+    docker build -t s3-acid-db .
+    ```
+  </Step>
+
+  <Step title="Deploy to Lambda">
+    Use AWS SAM, Terraform, or your preferred IaC tool
+  </Step>
+
+  <Step title="Configure IAM Role">
+    Grant permissions:
+    - `glue:*` for Glue Catalog
+    - `s3:*` for S3 storage
+  </Step>
+</Steps>
+
+## Configuration
+
+All settings in `config/config.json`:
+
+```json
+{
+  "development": {
+    "s3": {
+      "endpoint": "http://minio:9000",
+      "bucket_name": "iceberg-warehouse"
+    },
+    "catalog": {
+      "type": "rest",
+      "uri": "http://iceberg-rest:8181"
+    }
+  },
+  "production": {
+    "s3": {
+      "bucket_name": "${BUCKET_NAME}",
+      "region": "${AWS_REGION}"
+    },
+    "catalog": {
+      "type": "glue"
+    }
+  }
+}
+```
+
+<Tip>
+No code changes needed! Just switch environment variables.
+</Tip>

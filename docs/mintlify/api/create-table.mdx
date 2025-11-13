@@ -1,0 +1,76 @@
+---
+title: CREATE_TABLE
+description: 'Create Iceberg tables with schemas'
+---
+
+# CREATE TABLE
+
+Create a new Iceberg table with a defined schema.
+
+## Request
+
+```json
+{
+  "operation": "CREATE_TABLE",
+  "tenant_id": "my-tenant",
+  "namespace": "default",
+  "table": "employees",
+  "schema": {
+    "fields": {
+      "employee_id": {"type": "string", "required": true},
+      "name": {"type": "string", "required": true},
+      "email": {"type": "string", "required": true},
+      "department": {"type": "string", "required": false},
+      "salary": {"type": "double", "required": false}
+    }
+  },
+  "if_not_exists": true
+}
+```
+
+## Parameters
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `operation` | string | Yes | Must be "CREATE_TABLE" |
+| `tenant_id` | string | Yes | Tenant identifier |
+| `namespace` | string | No | Defaults to "default" |
+| `table` | string | Yes | Table name |
+| `schema` | object | Yes | Table schema definition |
+| `if_not_exists` | boolean | No | Skip if table exists |
+
+## Schema Field Types
+
+- `string` - Text data
+- `integer` - 32-bit integers
+- `long` - 64-bit integers
+- `double` - Floating point numbers
+- `boolean` - True/False
+- `timestamp` - Date and time
+- `date` - Date only
+
+## Response
+
+```json
+{
+  "success": true,
+  "table_created": true,
+  "table_existed": false,
+  "error": null
+}
+```
+
+## System Fields
+
+These fields are automatically added:
+
+- `_tenant_id` - Multi-tenant isolation
+- `_record_id` - Unique record ID
+- `_timestamp` - Created/updated timestamp
+- `_version` - Version number
+- `_deleted` - Soft delete flag
+- `_deleted_at` - Deletion timestamp
+
+<Note>
+You don't need to define system fields - they're added automatically!
+</Note>

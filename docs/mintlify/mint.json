@@ -1,0 +1,78 @@
+{
+  "name": "S3 ACID Database",
+  "logo": {
+    "dark": "/logo/dark.svg",
+    "light": "/logo/light.svg"
+  },
+  "favicon": "/favicon.svg",
+  "colors": {
+    "primary": "#0D9373",
+    "light": "#07C983",
+    "dark": "#0D9373",
+    "anchors": {
+      "from": "#0D9373",
+      "to": "#07C983"
+    }
+  },
+  "topbarLinks": [
+    {
+      "name": "GitHub",
+      "url": "https://github.com/yourusername/s3-acid-database"
+    }
+  ],
+  "topbarCtaButton": {
+    "name": "API Playground",
+    "url": "/database"
+  },
+  "navigation": [
+    {
+      "group": "Getting Started",
+      "pages": [
+        "introduction",
+        "quickstart",
+        "installation"
+      ]
+    },
+    {
+      "group": "Core Concepts",
+      "pages": [
+        "features/acid-transactions",
+        "features/versioning",
+        "features/multi-tenancy"
+      ]
+    },
+    {
+      "group": "API Reference",
+      "pages": [
+        "api/overview",
+        "api/create-table",
+        "api/write",
+        "api/query",
+        "api/update",
+        "api/delete",
+        "api/aggregations"
+      ]
+    },
+    {
+      "group": "Features",
+      "pages": [
+        "features/column-selection",
+        "features/aggregations",
+        "features/soft-delete",
+        "features/audit-trail",
+        "features/compaction"
+      ]
+    },
+    {
+      "group": "Examples",
+      "pages": [
+        "examples/basic-crud",
+        "examples/analytics",
+        "examples/audit-queries"
+      ]
+    }
+  ],
+  "footerSocials": {
+    "github": "https://github.com/yourusername/s3-acid-database"
+  }
+}

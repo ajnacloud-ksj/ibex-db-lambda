@@ -1,0 +1,99 @@
+---
+title: WRITE
+description: 'Insert records with ACID guarantees'
+---
+
+# WRITE Operation
+
+Insert records into a table with full ACID transaction guarantees.
+
+## Request
+
+```json
+{
+  "operation": "WRITE",
+  "tenant_id": "my-tenant",
+  "table": "employees",
+  "records": [
+    {
+      "employee_id": "E001",
+      "name": "Alice Johnson",
+      "email": "alice@company.com",
+      "department": "Engineering",
+      "salary": 95000
+    },
+    {
+      "employee_id": "E002",
+      "name": "Bob Smith",
+      "email": "bob@company.com",
+      "department": "Sales",
+      "salary": 75000
+    }
+  ]
+}
+```
+
+## Parameters
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `operation` | string | Yes | Must be "WRITE" |
+| `tenant_id` | string | Yes | Tenant identifier |
+| `namespace` | string | No | Defaults to "default" |
+| `table` | string | Yes | Table name |
+| `records` | array | Yes | Records to insert |
+
+## Response
+
+```json
+{
+  "success": true,
+  "records_written": 2,
+  "compaction_recommended": false,
+  "error": null
+}
+```
+
+## ACID Guarantees
+
+<AccordionGroup>
+  <Accordion title="Atomicity">
+    All records are written or none are. No partial writes.
+  </Accordion>
+  <Accordion title="Consistency">
+    Schema validation ensures data integrity.
+  </Accordion>
+  <Accordion title="Isolation">
+    Concurrent writes don't interfere with each other.
+  </Accordion>
+  <Accordion title="Durability">
+    Once committed, data is permanently stored in S3.
+  </Accordion>
+</AccordionGroup>
+
+## Auto-Compaction
+
+After many writes, you may see:
+```json
+{
+  "compaction_recommended": true,
+  "small_files_count": 15
+}
+```
+
+<Tip>
+Run COMPACT operation to merge small files and improve query performance.
+</Tip>
+
+## Batch Size
+
+Recommended batch size: **100-1000 records**
+
+For larger datasets:
+```python
+# Batch writes
+batch_size = 1000
+for i in range(0, len(records), batch_size):
+    batch = records[i:i + batch_size]
+    write_request(batch)
+```

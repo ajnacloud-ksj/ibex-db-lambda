@@ -1,0 +1,179 @@
+{
+  "development": {
+    "environment": "development",
+    "s3": {
+      "bucket_name": "test-bucket",
+      "warehouse_path": "iceberg-warehouse",
+      "endpoint": "http://minio:9000",
+      "region": "us-east-1",
+      "access_key_id": "minioadmin",
+      "secret_access_key": "minioadmin",
+      "use_ssl": false,
+      "path_style_access": true
+    },
+    "catalog": {
+      "type": "rest",
+      "name": "rest",
+      "uri": "http://iceberg-rest:8181"
+    },
+    "duckdb": {
+      "memory_limit": "2GB",
+      "threads": 4
+    },
+    "lambda": {
+      "timeout": 900,
+      "memory_size": 3008
+    },
+    "performance": {
+      "max_retries": 5,
+      "query_timeout_ms": 30000,
+      "batch_size": 1000
+    },
+    "iceberg": {
+      "write": {
+        "target_file_size_mb": 128,
+        "compression_codec": "zstd",
+        "parquet_row_group_size": 8192
+      },
+      "compaction": {
+        "enabled": true,
+        "small_file_threshold_mb": 64,
+        "min_files_to_compact": 3,
+        "opportunistic_check_interval": 5,
+        "max_files_per_compaction": 100
+      }
+    }
+  },
+  "production": {
+    "environment": "production",
+    "s3": {
+      "bucket_name": "${BUCKET_NAME}",
+      "warehouse_path": "iceberg-warehouse",
+      "region": "${AWS_REGION}",
+      "use_ssl": true,
+      "path_style_access": false,
+      "_comment": "Uses IAM role credentials - no access keys in production"
+    },
+    "catalog": {
+      "type": "glue",
+      "name": "glue",
+      "account_id": "${AWS_ACCOUNT_ID}",
+      "region": "${AWS_REGION}"
+    },
+    "duckdb": {
+      "memory_limit": "4GB",
+      "threads": 8
+    },
+    "lambda": {
+      "timeout": 900,
+      "memory_size": 10240
+    },
+    "performance": {
+      "max_retries": 3,
+      "query_timeout_ms": 60000,
+      "batch_size": 5000
+    },
+    "iceberg": {
+      "write": {
+        "target_file_size_mb": 256,
+        "compression_codec": "zstd",
+        "parquet_row_group_size": 16384
+      },
+      "compaction": {
+        "enabled": true,
+        "small_file_threshold_mb": 128,
+        "min_files_to_compact": 20,
+        "opportunistic_check_interval": 100,
+        "max_files_per_compaction": 200
+      }
+    }
+  },
+  "staging": {
+    "environment": "staging",
+    "s3": {
+      "bucket_name": "${BUCKET_NAME}",
+      "warehouse_path": "iceberg-warehouse",
+      "region": "${AWS_REGION}",
+      "use_ssl": true,
+      "path_style_access": false
+    },
+    "catalog": {
+      "type": "glue",
+      "name": "glue",
+      "account_id": "${AWS_ACCOUNT_ID}",
+      "region": "${AWS_REGION}"
+    },
+    "duckdb": {
+      "memory_limit": "2GB",
+      "threads": 4
+    },
+    "lambda": {
+      "timeout": 600,
+      "memory_size": 3008
+    },
+    "performance": {
+      "max_retries": 3,
+      "query_timeout_ms": 45000,
+      "batch_size": 2000
+    },
+    "iceberg": {
+      "write": {
+        "target_file_size_mb": 128,
+        "compression_codec": "zstd",
+        "parquet_row_group_size": 8192
+      },
+      "compaction": {
+        "enabled": true,
+        "small_file_threshold_mb": 64,
+        "min_files_to_compact": 15,
+        "opportunistic_check_interval": 75,
+        "max_files_per_compaction": 150
+      }
+    }
+  },
+  "testing": {
+    "environment": "testing",
+    "s3": {
+      "bucket_name": "test-bucket",
+      "warehouse_path": "iceberg-warehouse",
+      "endpoint": "http://localhost:9005",
+      "region": "us-east-1",
+      "access_key_id": "minioadmin",
+      "secret_access_key": "minioadmin",
+      "use_ssl": false,
+      "path_style_access": true
+    },
+    "catalog": {
+      "type": "rest",
+      "name": "rest",
+      "uri": "http://localhost:8181"
+    },
+    "duckdb": {
+      "memory_limit": "1GB",
+      "threads": 2
+    },
+    "lambda": {
+      "timeout": 60,
+      "memory_size": 1024
+    },
+    "performance": {
+      "max_retries": 3,
+      "query_timeout_ms": 10000,
+      "batch_size": 100
+    },
+    "iceberg": {
+      "write": {
+        "target_file_size_mb": 64,
+        "compression_codec": "zstd",
+        "parquet_row_group_size": 4096
+      },
+      "compaction": {
+        "enabled": true,
+        "small_file_threshold_mb": 32,
+        "min_files_to_compact": 5,
+        "opportunistic_check_interval": 25,
+        "max_files_per_compaction": 50
+      }
+    }
+  }
+}

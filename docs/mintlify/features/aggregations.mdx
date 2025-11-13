@@ -1,0 +1,124 @@
+---
+title: Aggregations
+description: 'Type-safe analytical queries with GROUP BY'
+---
+
+# Aggregations & GROUP BY
+
+Perform complex analytics with type-safe aggregations.
+
+## Why Type-Safe?
+
+<CardGroup cols={2}>
+  <Card title="Before (Unsafe)" icon="xmark">
+    ```json
+    "projection": ["SUM(revenue) as total"]
+    ```
+    ❌ Raw SQL in strings
+  </Card>
+  <Card title="After (Safe)" icon="check">
+    ```json
+    "aggregations": [
+      {"op": "sum", "field": "revenue", "alias": "total"}
+    ]
+    ```
+    ✅ Validated at request time
+  </Card>
+</CardGroup>
+
+## Simple COUNT
+
+```json
+{
+  "operation": "QUERY",
+  "table": "employees",
+  "projection": ["department"],
+  "aggregations": [
+    {"op": "count", "field": null, "alias": "employee_count"}
+  ],
+  "group_by": ["department"]
+}
+```
+
+**Result:**
+```json
+[
+  {"department": "Engineering", "employee_count": 15},
+  {"department": "Sales", "employee_count": 8}
+]
+```
+
+## Multiple Aggregations
+
+```json
+{
+  "aggregations": [
+    {"op": "count", "field": null, "alias": "orders"},
+    {"op": "sum", "field": "revenue", "alias": "total"},
+    {"op": "avg", "field": "revenue", "alias": "average"},
+    {"op": "min", "field": "revenue", "alias": "minimum"},
+    {"op": "max", "field": "revenue", "alias": "maximum"}
+  ]
+}
+```
+
+## COUNT DISTINCT
+
+```json
+{
+  "aggregations": [
+    {
+      "op": "count",
+      "field": "customer_id",
+      "alias": "unique_customers",
+      "distinct": true
+    }
+  ]
+}
+```
+
+## HAVING Clause
+
+Filter after aggregation:
+
+```json
+{
+  "projection": ["region"],
+  "aggregations": [
+    {"op": "sum", "field": "revenue", "alias": "total_revenue"}
+  ],
+  "group_by": ["region"],
+  "having": {
+    "total_revenue": {"gt": 100000}
+  }
+}
+```
+
+Only returns regions with revenue > $100k.
+
+## Complex Analytics
+
+```json
+{
+  "filter": {
+    "status": {"eq": "completed"}
+  },
+  "projection": ["product_category", "region"],
+  "aggregations": [
+    {"op": "count", "field": null, "alias": "orders"},
+    {"op": "sum", "field": "quantity * price", "alias": "revenue"},
+    {"op": "avg", "field": "quantity", "alias": "avg_quantity"}
+  ],
+  "group_by": ["product_category", "region"],
+  "having": {
+    "orders": {"gte": 10}
+  },
+  "sort": [
+    {"field": "revenue", "order": "desc"}
+  ]
+}
+```
+
+<Tip>
+Combine WHERE (filter), GROUP BY, HAVING, and ORDER BY for powerful analytics!
+</Tip>

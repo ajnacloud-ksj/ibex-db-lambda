@@ -1,0 +1,117 @@
+---
+title: Version History
+description: 'Track every change with automatic versioning'
+---
+
+# Version History & Audit Trail
+
+Every record maintains complete version history for compliance and debugging.
+
+## How It Works
+
+Every UPDATE creates a new version:
+
+1. **INSERT** → Version 1
+2. **UPDATE** → Version 2 (both exist)
+3. **UPDATE** → Version 3 (all three exist)
+
+<Note>
+All versions are preserved for ACID compliance and time-travel queries.
+</Note>
+
+## System Fields
+
+Every record includes:
+
+| Field | Description |
+|-------|-------------|
+| `_version` | Version number (1, 2, 3...) |
+| `_timestamp` | When this version was created |
+| `_record_id` | Unique record identifier |
+| `_tenant_id` | Multi-tenant isolation |
+| `_deleted` | Soft delete flag |
+| `_deleted_at` | Deletion timestamp |
+
+## View All Versions
+
+```json
+{
+  "operation": "QUERY",
+  "table": "employees",
+  "filter": {"employee_id": {"eq": "E001"}},
+  "projection": ["_version", "_timestamp", "name", "salary"],
+  "sort": [{"field": "_version", "order": "asc"}]
+}
+```
+
+**Result:**
+```json
+[
+  {"_version": 1, "_timestamp": "2024-01-01", "salary": 80000},
+  {"_version": 2, "_timestamp": "2024-06-01", "salary": 85000},
+  {"_version": 3, "_timestamp": "2024-12-01", "salary": 95000}
+]
+```
+
+## Get Latest Version Only
+
+```json
+{
+  "operation": "QUERY",
+  "table": "employees",
+  "filter": {"employee_id": {"eq": "E001"}},
+  "sort": [{"field": "_version", "order": "desc"}],
+  "limit": 1
+}
+```
+
+## Track Specific Changes
+
+Salary history:
+```json
+{
+  "operation": "QUERY",
+  "table": "employees",
+  "filter": {"employee_id": {"eq": "E001"}},
+  "projection": ["_version", "_timestamp", "salary"],
+  "sort": [{"field": "_timestamp", "order": "asc"}]
+}
+```
+
+## Use Cases
+
+<AccordionGroup>
+  <Accordion title="Compliance & Audit">
+    - Track who changed what and when
+    - Salary change history
+    - Data modification trails
+  </Accordion>
+
+  <Accordion title="Debugging">
+    - See what value was before the bug
+    - Understand state changes
+    - Root cause analysis
+  </Accordion>
+
+  <Accordion title="Time-Travel Queries">
+    - Query data as it was at any point
+    - Compare current vs previous states
+    - Trend analysis
+  </Accordion>
+
+  <Accordion title="Data Recovery">
+    - Restore accidentally changed data
+    - Undo operations
+    - Point-in-time recovery
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<Tip>
+Use `group_by(.employee_id) | max(_version)` pattern to get current state of all records efficiently.
+</Tip>
+
+<Warning>
+Versions accumulate over time. Run COMPACT periodically to optimize storage.
+</Warning>

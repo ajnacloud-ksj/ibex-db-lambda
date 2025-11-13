@@ -1,0 +1,156 @@
+---
+title: Quickstart
+description: 'Get up and running in 5 minutes'
+---
+
+# Quickstart Guide
+
+Get your S3 ACID Database running locally in minutes using Docker.
+
+## Prerequisites
+
+- Docker & Docker Compose
+- curl or Postman (for testing)
+
+## Start the Service
+
+<Steps>
+  <Step title="Navigate to docker directory">
+    ```bash
+    cd docker
+    ```
+  </Step>
+
+  <Step title="Start FastAPI service">
+    ```bash
+    docker compose up -d fastapi
+    ```
+
+    This starts:
+    - FastAPI server (port 9000)
+    - MinIO (S3-compatible storage)
+    - Iceberg REST Catalog
+  </Step>
+
+  <Step title="Verify health">
+    ```bash
+    curl http://localhost:9000/health
+    ```
+
+    Expected response:
+    ```json
+    {
+      "status": "healthy",
+      "service": "S3 ACID Database",
+      "version": "1.0.0"
+    }
+    ```
+  </Step>
+</Steps>
+
+## Your First Request
+
+### 1. Create a Table
+
+```bash
+curl -X POST http://localhost:9000/database \
+  -H "Content-Type: application/json" \
+  -d '{
+    "operation": "CREATE_TABLE",
+    "tenant_id": "my-tenant",
+    "namespace": "default",
+    "table": "users",
+    "schema": {
+      "fields": {
+        "name": {"type": "string", "required": true},
+        "email": {"type": "string", "required": true},
+        "age": {"type": "integer", "required": false}
+      }
+    }
+  }'
+```
+
+### 2. Insert Records
+
+```bash
+curl -X POST http://localhost:9000/database \
+  -H "Content-Type: application/json" \
+  -d '{
+    "operation": "WRITE",
+    "tenant_id": "my-tenant",
+    "table": "users",
+    "records": [
+      {"name": "Alice", "email": "alice@example.com", "age": 30},
+      {"name": "Bob", "email": "bob@example.com", "age": 25}
+    ]
+  }'
+```
+
+### 3. Query Data
+
+```bash
+curl -X POST http://localhost:9000/database \
+  -H "Content-Type: application/json" \
+  -d '{
+    "operation": "QUERY",
+    "tenant_id": "my-tenant",
+    "table": "users"
+  }'
+```
+
+## Using Postman
+
+<Tip>
+We provide a complete Postman collection with all features!
+</Tip>
+
+1. Import collection:
+   ```
+   postman/collections/S3_ACID_Database_FastAPI_Complete.postman_collection.json
+   ```
+
+2. Import environment:
+   ```
+   postman/environments/FastAPI.postman_environment.json
+   ```
+
+3. Run requests in order!
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="API Reference" icon="book" href="/api/overview">
+    Learn all operations
+  </Card>
+  <Card title="Features" icon="sparkles" href="/features/column-selection">
+    Explore advanced features
+  </Card>
+  <Card title="Examples" icon="code" href="/examples/basic-crud">
+    See real-world examples
+  </Card>
+  <Card title="Configuration" icon="gear" href="/installation">
+    Production deployment
+  </Card>
+</CardGroup>
+
+## Quick Tips
+
+<AccordionGroup>
+  <Accordion title="View S3 Data">
+    Access MinIO console at http://localhost:9006
+    - Username: `minioadmin`
+    - Password: `minioadmin`
+  </Accordion>
+
+  <Accordion title="Run Tests">
+    ```bash
+    bash tests/e2e/test_fastapi_compaction.sh
+    ```
+  </Accordion>
+
+  <Accordion title="Stop Services">
+    ```bash
+    docker compose down
+    ```
+  </Accordion>
+</AccordionGroup>
