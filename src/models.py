@@ -454,7 +454,7 @@ class WriteRequest(BaseModel):
     namespace: str = "default"
     table: str
     records: List[Dict[str, Any]]
-    schema: Optional[SchemaDefinition] = None
+    table_schema: Optional[SchemaDefinition] = Field(None, alias="schema")
     mode: WriteMode = WriteMode.APPEND
     partition: Optional[PartitionConfig] = None
     properties: Optional[TableProperties] = None
@@ -485,7 +485,7 @@ class UpdateRequest(BaseModel):
     table: str
     updates: Dict[str, Any]
     filter: FilterExpression
-    schema: Optional[SchemaDefinition] = None
+    table_schema: Optional[SchemaDefinition] = Field(None, alias="schema")
 
 class UpdateResponse(BaseModel):
     """Update operation response"""
@@ -510,7 +510,7 @@ class DeleteRequest(BaseModel):
     table: str
     filter: FilterExpression
     mode: DeleteMode = DeleteMode.SOFT
-    schema: Optional[SchemaDefinition] = None
+    table_schema: Optional[SchemaDefinition] = Field(None, alias="schema")
 
 class DeleteResponse(BaseModel):
     """Delete operation response"""
@@ -526,7 +526,7 @@ class HardDeleteRequest(BaseModel):
     table: str
     filter: FilterExpression
     confirm: bool = Field(..., description="Must be True to confirm physical deletion")
-    schema: Optional[SchemaDefinition] = None
+    table_schema: Optional[SchemaDefinition] = Field(None, alias="schema")
 
 class HardDeleteResponse(BaseModel):
     """Hard delete operation response"""
@@ -607,7 +607,7 @@ class CreateTableRequest(BaseModel):
     tenant_id: str
     namespace: str = "default"
     table: str
-    schema: SchemaDefinition
+    table_schema: SchemaDefinition = Field(..., alias="schema")
     partition: Optional[PartitionConfig] = None
     properties: Optional[TableProperties] = None
     if_not_exists: bool = True
@@ -640,7 +640,7 @@ class TableDescription(BaseModel):
     """Table description"""
     table_name: str
     namespace: str
-    schema: Optional[Dict[str, Any]] = None
+    table_schema: Optional[Dict[str, Any]] = Field(None, alias="schema")
     row_count: Optional[int] = None
     size_bytes: Optional[int] = None
 

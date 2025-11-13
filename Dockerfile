@@ -32,7 +32,7 @@ RUN python3 -c "import duckdb; \
 
 # Copy application code
 COPY src/ ${LAMBDA_TASK_ROOT}/src/
-COPY config/config.json ${LAMBDA_TASK_ROOT}/config.json
+COPY config/ ${LAMBDA_TASK_ROOT}/config/
 
 # Set environment variables (can be overridden)
 ENV PYTHONPATH="${LAMBDA_TASK_ROOT}/src:${PYTHONPATH}"

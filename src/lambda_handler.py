@@ -19,20 +19,59 @@ from src.models import (
 from src.operations_full_iceberg import DatabaseOperations
 
 
+def _normalize_event(event: Dict[str, Any]) -> tuple[str, str]:
+    """
+    Normalize event format to extract HTTP method and path
+    Supports both Lambda Function URL and API Gateway formats
+    
+    Lambda Function URL format:
+        - requestContext.http.method
+        - rawPath
+    
+    API Gateway format:
+        - httpMethod
+        - path
+    
+    Args:
+        event: Lambda event
+        
+    Returns:
+        tuple: (http_method, path)
+    """
+    # Check if Lambda Function URL format
+    if 'requestContext' in event and 'http' in event.get('requestContext', {}):
+        http_method = event['requestContext']['http'].get('method', 'POST')
+        path = event.get('rawPath', '/')
+    # Check if API Gateway format
+    elif 'httpMethod' in event:
+        http_method = event.get('httpMethod', 'POST')
+        path = event.get('path', '/')
+    else:
+        # Fallback - assume POST to /database
+        http_method = 'POST'
+        path = '/database'
+    
+    return http_method, path
+
+
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
     AWS Lambda handler function
+    Supports both API Gateway and Lambda Function URL event formats
 
     Args:
-        event: API Gateway event containing the request
+        event: API Gateway or Lambda Function URL event
         context: Lambda context (runtime information)
 
     Returns:
         API Gateway response with status code and body
     """
+    
+    # Normalize event format (Lambda Function URL vs API Gateway)
+    http_method, path = _normalize_event(event)
 
     # Handle health check
-    if event.get('httpMethod') == 'GET' and event.get('path') == '/health':
+    if http_method == 'GET' and path == '/health':
         return {
             'statusCode': 200,
             'headers': {
@@ -47,7 +86,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         }
 
     # Handle OPTIONS for CORS
-    if event.get('httpMethod') == 'OPTIONS':
+    if http_method == 'OPTIONS':
         return {
             'statusCode': 200,
             'headers': {

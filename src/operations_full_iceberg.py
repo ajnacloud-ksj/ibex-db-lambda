@@ -276,8 +276,8 @@ class FullIcebergOperations:
             field_id += 6
 
             # User-defined fields
-            if request.schema and request.schema.fields:
-                for field_name, field_def in request.schema.fields.items():
+            if request.table_schema and request.table_schema.fields:
+                for field_name, field_def in request.table_schema.fields.items():
                     # field_def is a FieldDefinition object
                     field_type = field_def.type if hasattr(field_def, 'type') else 'string'
                     required = field_def.required if hasattr(field_def, 'required') else False
