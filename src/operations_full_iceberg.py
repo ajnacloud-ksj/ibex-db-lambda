@@ -553,6 +553,11 @@ class FullIcebergOperations:
 
     def query(self, request: QueryRequest) -> QueryResponse:
         """Query Iceberg table using DuckDB's iceberg_scan with metadata caching"""
+        import uuid
+        query_start = time.time()
+        query_id = str(uuid.uuid4())
+        cache_hit = False
+        
         try:
             table_identifier = self._get_table_identifier(
                 request.tenant_id, request.namespace, request.table
@@ -560,13 +565,25 @@ class FullIcebergOperations:
 
             # Get table metadata location from cache (fast) or catalog (slow)
             try:
+                # Check if this will be a cache hit
+                cache_key = table_identifier
+                if cache_key in self._metadata_cache:
+                    cached_path, cached_time = self._metadata_cache[cache_key]
+                    if time.time() - cached_time < self._cache_ttl:
+                        cache_hit = True
+                
                 metadata_path = self._get_metadata_path(table_identifier)
             except Exception as e:
                 # Table doesn't exist
                 return QueryResponse(
                     success=True,
                     data=[],
-                    metadata=QueryMetadata(row_count=0, execution_time_ms=0)
+                    metadata=QueryMetadata(
+                        row_count=0,
+                        execution_time_ms=0,
+                        cache_hit=False,
+                        query_id=query_id
+                    )
                 )
 
             # Build SELECT clause based on projection and aggregations
@@ -614,21 +631,42 @@ class FullIcebergOperations:
             if request.limit:
                 sql += f" LIMIT {request.limit}"
 
-            # Execute query
+            # Execute query and track timing
+            query_exec_start = time.time()
             if params:
                 result = self.conn.execute(sql, params).fetchdf()
             else:
                 result = self.conn.execute(sql).fetchdf()
+            query_exec_time = (time.time() - query_exec_start) * 1000
 
             # Convert to dict
             data = result.to_dict(orient='records') if not result.empty else []
+            
+            # Calculate total query time
+            total_time_ms = (time.time() - query_start) * 1000
+            
+            # Estimate scanned bytes (rough estimate based on result size)
+            scanned_rows = len(data)
+            scanned_bytes = None
+            if data:
+                # Estimate bytes: sum of string lengths + fixed overhead per row
+                try:
+                    import sys
+                    scanned_bytes = sum(sys.getsizeof(str(v)) for row in data for v in row.values())
+                except:
+                    scanned_bytes = None
 
             return QueryResponse(
                 success=True,
                 data=data,
                 metadata=QueryMetadata(
                     row_count=len(data),
-                    execution_time_ms=0
+                    execution_time_ms=round(query_exec_time, 2),
+                    scanned_bytes=scanned_bytes,
+                    scanned_rows=scanned_rows,
+                    cache_hit=cache_hit,
+                    query_id=query_id,
+                    warnings=None
                 )
             )
 
