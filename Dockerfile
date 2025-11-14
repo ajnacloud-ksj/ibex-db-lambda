@@ -13,24 +13,28 @@ RUN uv pip install --system --no-cache -e .
 
 # Install DuckDB Iceberg extensions
 # Pre-install all necessary extensions at build time
-RUN python3 -c "import duckdb; import platform; \
+# Set home directory to a persistent location that Lambda can access
+RUN mkdir -p /opt/duckdb_extensions && \
+    python3 -c "import duckdb; import platform; \
     print(f'Platform: {platform.machine()}'); \
     conn = duckdb.connect(':memory:'); \
+    conn.execute('SET home_directory=\\\"/opt/duckdb_extensions\\\"'); \
     conn.execute('INSTALL avro'); \
     conn.execute('INSTALL iceberg'); \
     conn.execute('INSTALL httpfs'); \
     print('✓ DuckDB extensions installed')"
 
-# Ensure extensions persist and create test database
+# Verify extensions can be loaded
 RUN python3 -c "import duckdb; \
-    conn = duckdb.connect('/tmp/test.db'); \
-    conn.execute('FORCE INSTALL avro'); \
-    conn.execute('FORCE INSTALL iceberg'); \
-    conn.execute('FORCE INSTALL httpfs'); \
+    conn = duckdb.connect(':memory:'); \
+    conn.execute('SET home_directory=\\\"/opt/duckdb_extensions\\\"'); \
     conn.execute('LOAD avro'); \
     conn.execute('LOAD iceberg'); \
     conn.execute('LOAD httpfs'); \
     print('✓ Extensions verified and loaded')"
+
+# Ensure /tmp is writable for Lambda runtime
+RUN chmod -R 755 /opt/duckdb_extensions
 
 # Copy application code
 COPY src/ ${LAMBDA_TASK_ROOT}/src/

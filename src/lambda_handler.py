@@ -84,7 +84,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         API Gateway response with status code and body
     """
     start_time = time.time()
-    request_id = context.request_id if context else 'local-test'
+    request_id = context.aws_request_id if context else 'local-test'
     
     # Set up timeout protection (leave 5s buffer for cleanup)
     if context:

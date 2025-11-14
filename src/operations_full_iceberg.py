@@ -165,8 +165,9 @@ class FullIcebergOperations:
             conn = duckdb.connect(':memory:')
 
             # Set home directory for extensions (fixes Lambda/Docker issue)
-            print("Setting DuckDB home directory to /tmp...")
-            conn.execute("SET home_directory='/tmp';")
+            # Extensions are pre-installed in /opt/duckdb_extensions during container build
+            print("Setting DuckDB home directory to /opt/duckdb_extensions...")
+            conn.execute("SET home_directory='/opt/duckdb_extensions';")
 
             # Load extensions (already pre-installed in Docker container)
             # Extensions are installed at container build time for faster cold starts
