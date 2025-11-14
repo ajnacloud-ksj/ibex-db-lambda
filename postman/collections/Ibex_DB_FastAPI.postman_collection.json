@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Ibex DB - FastAPI (Local)",
-    "description": "Complete test suite for FastAPI local development including auditing, time travel, and bulk operations\n\nEnvironment: FastAPI - Local Development\nBase URL: http://localhost:9000\n\nBefore running:\n1. cd docker && docker-compose up -d fastapi\n2. Select 'FastAPI - Local Development' environment\n3. Run requests in order",
+    "description": "Complete test suite for FastAPI local development\n\n✨ NEW: Updated to use filters array format\n\nEnvironment: FastAPI - Local Development\nBase URL: http://localhost:9000\n\nBefore running:\n1. cd docker && docker-compose up -d fastapi\n2. Select 'FastAPI - Local Development' environment\n3. Run requests in order\n\nKey Changes:\n- filter → filters (array format)\n- op → function (aggregations)",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -76,7 +76,7 @@
       }
     },
     {
-      "name": "QUERY - With filter",
+      "name": "QUERY - With filters (NEW FORMAT)",
       "request": {
         "method": "POST",
         "header": [
@@ -84,14 +84,14 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"projection\": [\"name\", \"age\"],\n  \"filter\": {\n    \"age\": {\"gte\": 25, \"lte\": 35}\n  },\n  \"limit\": 100\n}"
+          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"projection\": [\"name\", \"age\"],\n  \"filters\": [\n    {\"field\": \"age\", \"operator\": \"gte\", \"value\": 25},\n    {\"field\": \"age\", \"operator\": \"lte\", \"value\": 35}\n  ],\n  \"limit\": 100\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/database",
           "host": ["{{baseUrl}}"],
           "path": ["database"]
         },
-        "description": "Query users with age filter"
+        "description": "Query users with age filters (new array format)"
       }
     },
     {
@@ -103,18 +103,18 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"aggregations\": [\n    {\"op\": \"count\", \"field\": null, \"alias\": \"total_count\"}\n  ]\n}"
+          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"aggregations\": [\n    {\"function\": \"count\", \"field\": null, \"alias\": \"total_count\"}\n  ]\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/database",
           "host": ["{{baseUrl}}"],
           "path": ["database"]
         },
-        "description": "Count total users"
+        "description": "Count total users (using function instead of op)"
       }
     },
     {
-      "name": "QUERY - Count with filter",
+      "name": "QUERY - Count with filters",
       "request": {
         "method": "POST",
         "header": [
@@ -122,14 +122,14 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"filter\": {\n    \"age\": {\"gte\": 30}\n  },\n  \"aggregations\": [\n    {\"op\": \"count\", \"field\": null, \"alias\": \"count_over_30\"}\n  ]\n}"
+          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"filters\": [\n    {\"field\": \"age\", \"operator\": \"gte\", \"value\": 30}\n  ],\n  \"aggregations\": [\n    {\"function\": \"count\", \"field\": null, \"alias\": \"count_over_30\"}\n  ]\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/database",
           "host": ["{{baseUrl}}"],
           "path": ["database"]
         },
-        "description": "Count users aged 30 or older"
+        "description": "Count users aged 30 or older (new format)"
       }
     },
     {
@@ -141,7 +141,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"operation\": \"UPDATE\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"updates\": {\"age\": 31},\n  \"filter\": {\"name\": {\"eq\": \"Alice\"}}\n}"
+          "raw": "{\n  \"operation\": \"UPDATE\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"updates\": {\"age\": 31},\n  \"filters\": [\n    {\"field\": \"name\", \"operator\": \"eq\", \"value\": \"Alice\"}\n  ]\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/database",
@@ -160,7 +160,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"operation\": \"UPDATE\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"updates\": {\"email\": \"updated@example.com\"},\n  \"filter\": {\n    \"age\": {\"gte\": 30}\n  }\n}"
+          "raw": "{\n  \"operation\": \"UPDATE\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"updates\": {\"email\": \"updated@example.com\"},\n  \"filters\": [\n    {\"field\": \"age\", \"operator\": \"gte\", \"value\": 30}\n  ]\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/database",
@@ -179,7 +179,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"filter\": {\"name\": {\"eq\": \"Alice\"}},\n  \"projection\": [\"_version\", \"_timestamp\", \"name\", \"email\", \"age\"],\n  \"sort\": [{\"field\": \"_version\", \"order\": \"asc\"}]\n}"
+          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"filters\": [\n    {\"field\": \"name\", \"operator\": \"eq\", \"value\": \"Alice\"}\n  ],\n  \"projection\": [\"_version\", \"_timestamp\", \"name\", \"email\", \"age\"],\n  \"sort\": [{\"field\": \"_version\", \"order\": \"asc\"}]\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/database",
@@ -198,7 +198,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"filter\": {\"name\": {\"eq\": \"Alice\"}},\n  \"sort\": [{\"field\": \"_version\", \"order\": \"desc\"}],\n  \"limit\": 1\n}"
+          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"filters\": [\n    {\"field\": \"name\", \"operator\": \"eq\", \"value\": \"Alice\"}\n  ],\n  \"sort\": [{\"field\": \"_version\", \"order\": \"desc\"}],\n  \"limit\": 1\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/database",
@@ -217,7 +217,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"filter\": {\"name\": {\"eq\": \"Alice\"}},\n  \"projection\": [\"_timestamp\", \"age\", \"_version\"],\n  \"sort\": [{\"field\": \"_timestamp\", \"order\": \"asc\"}]\n}"
+          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"filters\": [\n    {\"field\": \"name\", \"operator\": \"eq\", \"value\": \"Alice\"}\n  ],\n  \"projection\": [\"_timestamp\", \"age\", \"_version\"],\n  \"sort\": [{\"field\": \"_timestamp\", \"order\": \"asc\"}]\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/database",
@@ -236,7 +236,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"aggregations\": [\n    {\"op\": \"count\", \"field\": null, \"alias\": \"version_count\"}\n  ],\n  \"group_by\": [\"name\"],\n  \"sort\": [{\"field\": \"version_count\", \"order\": \"desc\"}]\n}"
+          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"aggregations\": [\n    {\"function\": \"count\", \"field\": null, \"alias\": \"version_count\"}\n  ],\n  \"group_by\": [\"name\"],\n  \"sort\": [{\"field\": \"version_count\", \"order\": \"desc\"}]\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/database",
@@ -255,7 +255,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"filter\": {\n    \"_timestamp\": {\n      \"gte\": \"2025-11-14T00:00:00\",\n      \"lte\": \"2025-11-14T23:59:59\"\n    }\n  },\n  \"projection\": [\"_timestamp\", \"_version\", \"name\", \"age\"],\n  \"sort\": [{\"field\": \"_timestamp\", \"order\": \"desc\"}]\n}"
+          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"filters\": [\n    {\"field\": \"_timestamp\", \"operator\": \"gte\", \"value\": \"2025-11-14T00:00:00\"},\n    {\"field\": \"_timestamp\", \"operator\": \"lte\", \"value\": \"2025-11-14T23:59:59\"}\n  ],\n  \"projection\": [\"_timestamp\", \"_version\", \"name\", \"age\"],\n  \"sort\": [{\"field\": \"_timestamp\", \"order\": \"desc\"}]\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/database",
@@ -293,7 +293,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"operation\": \"DELETE\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"filter\": {\"name\": {\"eq\": \"Charlie\"}},\n  \"hard_delete\": false\n}"
+          "raw": "{\n  \"operation\": \"DELETE\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"filters\": [\n    {\"field\": \"name\", \"operator\": \"eq\", \"value\": \"Charlie\"}\n  ],\n  \"mode\": \"soft\"\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/database",
@@ -312,7 +312,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"include_deleted\": true,\n  \"filter\": {\"_deleted\": {\"eq\": true}},\n  \"projection\": [\"name\", \"_deleted_at\", \"_timestamp\"]\n}"
+          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"include_deleted\": true,\n  \"filters\": [\n    {\"field\": \"_deleted\", \"operator\": \"eq\", \"value\": true}\n  ],\n  \"projection\": [\"name\", \"_deleted_at\", \"_timestamp\"]\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/database",

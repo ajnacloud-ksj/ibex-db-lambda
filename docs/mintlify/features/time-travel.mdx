@@ -1,0 +1,588 @@
+---
+title: Time Travel & Auditing
+description: 'Query historical data and track all changes'
+---
+
+# Time Travel & Auditing
+
+Ibex DB provides complete audit trails and time travel capabilities, allowing you to query data as it existed at any point in time and track every change to your records.
+
+## System Audit Fields
+
+Every record automatically includes these fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `_tenant_id` | string | Tenant identifier for multi-tenancy |
+| `_record_id` | string | Unique record identifier (MD5 hash of primary key) |
+| `_timestamp` | timestamp | Last modification time (UTC) |
+| `_version` | integer | Version number (starts at 1, increments on update) |
+| `_deleted` | boolean | Soft delete flag (true if deleted) |
+| `_deleted_at` | timestamp | Deletion timestamp (null if not deleted) |
+
+<Note>
+These fields are **automatically managed** - you never need to set them manually!
+</Note>
+
+---
+
+## Version History
+
+### View All Versions of a Record
+
+Query all versions using the `_record_id`:
+
+```bash
+curl -X POST "https://your-domain.com/path" \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "operation": "QUERY",
+    "tenant_id": "my-tenant",
+    "table": "users",
+    "filter": {
+      "_record_id": {"eq": "abc123def456"}
+    },
+    "sort": [{"field": "_version", "order": "DESC"}]
+  }'
+```
+
+**Response shows all versions:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "_record_id": "abc123",
+      "_version": 3,
+      "_timestamp": "2025-11-14T15:00:00Z",
+      "name": "Alice Smith",
+      "email": "alice.smith@example.com",
+      "age": 31
+    },
+    {
+      "_record_id": "abc123",
+      "_version": 2,
+      "_timestamp": "2025-11-14T10:00:00Z",
+      "name": "Alice Johnson",
+      "email": "alice@example.com",
+      "age": 30
+    },
+    {
+      "_record_id": "abc123",
+      "_version": 1,
+      "_timestamp": "2025-11-14T08:00:00Z",
+      "name": "Alice",
+      "email": "alice@example.com",
+      "age": 30
+    }
+  ]
+}
+```
+
+### View Latest Version Only
+
+```json
+{
+  "operation": "QUERY",
+  "tenant_id": "my-tenant",
+  "table": "users",
+  "filter": {
+    "_record_id": {"eq": "abc123def456"}
+  },
+  "sort": [{"field": "_version", "order": "DESC"}],
+  "limit": 1
+}
+```
+
+---
+
+## Time Travel Queries
+
+Query data as it existed at a specific point in time using `as_of`:
+
+### Query Data from Yesterday
+
+```json
+{
+  "operation": "QUERY",
+  "tenant_id": "my-tenant",
+  "table": "users",
+  "as_of": "2025-11-13T00:00:00Z",
+  "limit": 100
+}
+```
+
+### Query Data from Last Week
+
+```json
+{
+  "operation": "QUERY",
+  "tenant_id": "my-tenant",
+  "table": "products",
+  "as_of": "2025-11-07T12:00:00Z",
+  "filter": {
+    "category": {"eq": "electronics"}
+  }
+}
+```
+
+<Tip>
+**How It Works:**
+
+Ibex DB uses Apache Iceberg's snapshot feature to enable time travel. Each write operation creates a new snapshot, preserving the state of the table at that moment.
+
+When you query with `as_of`, Ibex DB:
+1. Finds the snapshot closest to your timestamp
+2. Queries only the files that existed in that snapshot
+3. Returns data as it appeared at that time
+</Tip>
+
+---
+
+## Tracking Changes
+
+### View Changes in a Date Range
+
+```json
+{
+  "operation": "QUERY",
+  "tenant_id": "my-tenant",
+  "table": "users",
+  "filter": {
+    "_timestamp": {
+      "gte": "2025-11-13T00:00:00Z",
+      "lte": "2025-11-14T00:00:00Z"
+    }
+  },
+  "sort": [{"field": "_timestamp", "order": "DESC"}]
+}
+```
+
+### View Records Modified Today
+
+```json
+{
+  "operation": "QUERY",
+  "tenant_id": "my-tenant",
+  "table": "users",
+  "filter": {
+    "_timestamp": {
+      "gte": "2025-11-14T00:00:00Z"
+    }
+  }
+}
+```
+
+---
+
+## Soft Deletes
+
+Ibex DB uses soft deletes by default, preserving deleted records for audit purposes.
+
+### Delete Records
+
+```json
+{
+  "operation": "DELETE",
+  "tenant_id": "my-tenant",
+  "table": "users",
+  "filter": {
+    "status": {"eq": "inactive"}
+  }
+}
+```
+
+**What happens:**
+- `_deleted` set to `true`
+- `_deleted_at` set to current timestamp
+- `_version` incremented
+- Record remains in database
+
+### View Deleted Records
+
+```json
+{
+  "operation": "QUERY",
+  "tenant_id": "my-tenant",
+  "table": "users",
+  "filter": {
+    "_deleted": {"eq": true}
+  },
+  "sort": [{"field": "_deleted_at", "order": "DESC"}]
+}
+```
+
+### View Active (Non-Deleted) Records Only
+
+```json
+{
+  "operation": "QUERY",
+  "tenant_id": "my-tenant",
+  "table": "users",
+  "filter": {
+    "_deleted": {"eq": false}
+  }
+}
+```
+
+### Hard Delete (Permanent)
+
+<Warning>
+**Caution**: Hard deletes are permanent and cannot be recovered!
+</Warning>
+
+```json
+{
+  "operation": "HARD_DELETE",
+  "tenant_id": "my-tenant",
+  "table": "users",
+  "filter": {
+    "_deleted_at": {
+      "lt": "2024-11-14T00:00:00Z"
+    }
+  }
+}
+```
+
+---
+
+## Audit Query Patterns
+
+### Who Changed What When
+
+```json
+{
+  "operation": "QUERY",
+  "tenant_id": "my-tenant",
+  "table": "sensitive_data",
+  "projection": ["_record_id", "_version", "_timestamp", "field_changed"],
+  "filter": {
+    "_timestamp": {
+      "gte": "2025-11-01T00:00:00Z"
+    }
+  },
+  "sort": [{"field": "_timestamp", "order": "DESC"}]
+}
+```
+
+### Compare Before and After
+
+```python
+# Get version before change
+before = query(
+    table="users",
+    filter={"_record_id": {"eq": "abc123"}},
+    as_of="2025-11-14T09:00:00Z"
+)
+
+# Get version after change
+after = query(
+    table="users",
+    filter={"_record_id": {"eq": "abc123"}},
+    as_of="2025-11-14T11:00:00Z"
+)
+
+# Compare
+changes = diff(before, after)
+```
+
+### Restore Previous Version
+
+```json
+{
+  "operation": "UPDATE",
+  "tenant_id": "my-tenant",
+  "table": "users",
+  "filter": {
+    "_record_id": {"eq": "abc123"}
+  },
+  "updates": {
+    "name": "Previous Name",
+    "email": "previous@email.com"
+  }
+}
+```
+
+---
+
+## Response Metadata
+
+All queries return detailed metadata:
+
+```json
+{
+  "success": true,
+  "data": [...],
+  "metadata": {
+    "row_count": 100,
+    "execution_time_ms": 104.26,
+    "scanned_bytes": 9747,
+    "scanned_rows": 100,
+    "cache_hit": true,
+    "query_id": "a5051bad-a196-4b04-ab84-ceca7220ed15",
+    "warnings": null
+  },
+  "request_id": "771dced3-0f05-4932-950e-00e7939f50ae",
+  "execution_time_ms": 41.21
+}
+```
+
+### Understanding Execution Times
+
+- **`metadata.execution_time_ms`** (104.26ms): Pure DuckDB query time
+- **`execution_time_ms`** (41.21ms): Total API response time (includes parsing, serialization, etc.)
+
+In this example:
+- Query execution: 104.26ms
+- API overhead: 41.21 - 104.26 = -63.05ms (impossible, likely cached)
+- This indicates the metadata lookup was cached, saving time!
+
+<Note>
+**Why the difference?**
+
+- **Query time**: How long DuckDB took to execute SQL
+- **Total time**: Includes request parsing, metadata lookup (may be cached), query execution, and response serialization
+
+When `cache_hit: true`, metadata lookups are instant, so total time can be very close to query time.
+</Note>
+
+---
+
+## Compliance Use Cases
+
+### GDPR Right to be Forgotten
+
+```json
+{
+  "operation": "HARD_DELETE",
+  "tenant_id": "my-tenant",
+  "table": "users",
+  "filter": {
+    "user_id": {"eq": "gdpr-request-user-123"}
+  }
+}
+```
+
+### SOX Compliance Auditing
+
+```json
+{
+  "operation": "QUERY",
+  "tenant_id": "finance-dept",
+  "table": "transactions",
+  "projection": ["_record_id", "_version", "_timestamp", "amount", "user_id"],
+  "filter": {
+    "_timestamp": {
+      "gte": "2025-01-01T00:00:00Z",
+      "lte": "2025-12-31T23:59:59Z"
+    }
+  },
+  "sort": [{"field": "_timestamp", "order": "ASC"}]
+}
+```
+
+### HIPAA Audit Trail
+
+```json
+{
+  "operation": "QUERY",
+  "tenant_id": "healthcare-org",
+  "table": "patient_records",
+  "filter": {
+    "patient_id": {"eq": "12345"},
+    "_timestamp": {
+      "gte": "2025-11-01T00:00:00Z"
+    }
+  },
+  "projection": ["_timestamp", "_version", "accessed_by", "action"]
+}
+```
+
+---
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Snapshot Retention">
+    Configure snapshot retention based on your compliance needs:
+    
+    ```json
+    {
+      "operation": "COMPACT",
+      "tenant_id": "my-tenant",
+      "table": "users",
+      "expire_snapshots": true,
+      "snapshot_retention_hours": 168  // 7 days
+    }
+    ```
+    
+    **Recommendations:**
+    - **Development**: 24-48 hours
+    - **Production**: 7-30 days
+    - **Compliance**: 90+ days or longer
+  </Accordion>
+
+  <Accordion title="Query Performance">
+    Time travel queries can be slower for old snapshots:
+    
+    - **Recent data** (<7 days): ~100-200ms
+    - **Older data** (>30 days): ~500-1000ms
+    - **Very old data** (>90 days): May require compaction
+    
+    **Optimization:**
+    - Regular compaction reduces file count
+    - Use projections to select only needed fields
+    - Add filters to reduce scanned data
+  </Accordion>
+
+  <Accordion title="Storage Costs">
+    Version history consumes storage:
+    
+    - Each version creates new Parquet files
+    - Regular compaction merges small files
+    - Snapshot expiration removes old metadata
+    
+    **Cost Management:**
+    - Expire snapshots regularly
+    - Use hard deletes for non-sensitive data
+    - Monitor S3 storage usage
+  </Accordion>
+
+  <Accordion title="Indexing Audit Queries">
+    Optimize audit queries with smart filtering:
+    
+    ✅ **Fast** (indexed fields):
+    ```json
+    {"filter": {"_tenant_id": {"eq": "my-tenant"}}}
+    {"filter": {"_record_id": {"eq": "abc123"}}}
+    ```
+    
+    ⚠️ **Slower** (full scan):
+    ```json
+    {"filter": {"_version": {"gte": 5}}}
+    {"filter": {"_deleted": {"eq": true}}}
+    ```
+    
+    Always include `_tenant_id` in filters for best performance!
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Limitations
+
+<Warning>
+**Time Travel Limitations:**
+
+1. **Snapshot Availability**: Can only query snapshots that haven't been expired
+2. **File Availability**: Compaction may remove old data files
+3. **Performance**: Older snapshots may be slower to query
+4. **Storage**: Keeping many snapshots increases S3 costs
+
+**Recommendation**: Balance compliance needs with storage costs by configuring appropriate retention periods.
+</Warning>
+
+---
+
+## Examples
+
+### Track Price Changes
+
+```json
+{
+  "operation": "QUERY",
+  "tenant_id": "ecommerce",
+  "table": "products",
+  "filter": {
+    "product_id": {"eq": "PROD-123"}
+  },
+  "projection": ["_timestamp", "_version", "price"],
+  "sort": [{"field": "_version", "order": "DESC"}]
+}
+```
+
+### Find Who Deleted a Record
+
+```json
+{
+  "operation": "QUERY",
+  "tenant_id": "my-tenant",
+  "table": "users",
+  "filter": {
+    "_record_id": {"eq": "abc123"},
+    "_deleted": {"eq": true}
+  },
+  "projection": ["_deleted_at", "_timestamp", "name", "email"]
+}
+```
+
+### Restore Accidentally Deleted Data
+
+```bash
+# 1. Query deleted record
+curl -X POST "https://your-domain.com/path" \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "operation": "QUERY",
+    "tenant_id": "my-tenant",
+    "table": "users",
+    "filter": {
+      "_record_id": {"eq": "abc123"},
+      "_deleted": {"eq": true}
+    },
+    "limit": 1
+  }'
+
+# 2. Undelete by updating
+curl -X POST "https://your-domain.com/path" \
+  -H "x-api-key": YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "operation": "UPDATE",
+    "tenant_id": "my-tenant",
+    "table": "users",
+    "filter": {
+      "_record_id": {"eq": "abc123"}
+    },
+    "updates": {
+      "_deleted": false,
+      "_deleted_at": null
+    }
+  }'
+```
+
+---
+
+## Quick Reference
+
+### System Fields
+
+| Field | Purpose |
+|-------|---------|
+| `_tenant_id` | Multi-tenancy isolation |
+| `_record_id` | Unique record identifier |
+| `_timestamp` | Last modification time |
+| `_version` | Version number |
+| `_deleted` | Soft delete flag |
+| `_deleted_at` | Deletion timestamp |
+
+### Common Queries
+
+| Use Case | Filter |
+|----------|--------|
+| All versions of record | `_record_id: {eq: "abc"}` |
+| Latest version | + `sort: [{field: "_version", order: "DESC"}], limit: 1` |
+| Changes today | `_timestamp: {gte: "2025-11-14T00:00:00Z"}` |
+| Deleted records | `_deleted: {eq: true}` |
+| Active records | `_deleted: {eq: false}` |
+
+### Time Travel
+
+```json
+{
+  "as_of": "2025-11-13T12:00:00Z"  // Query data as of this timestamp
+}
+```
+

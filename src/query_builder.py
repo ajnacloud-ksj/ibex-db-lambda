@@ -12,15 +12,12 @@ from decimal import Decimal
 from .models import (
     QueryRequest,
     AggregateRequest,
-    FilterOperator,
-    LogicalFilter,
-    FilterExpression,
+    Filter,
     ProjectionField,
     AggregateField,
     JoinClause,
     JoinCondition,
     SortField,
-    AggregateOp,
     JoinType,
     SortOrder,
 )
@@ -86,8 +83,8 @@ class TypeSafeQueryBuilder:
                 params.extend(join_params)
 
         # WHERE clause
-        if request.filter:
-            where_sql, where_params = self._build_filter(request.filter, "WHERE")
+        if request.filters:
+            where_sql, where_params = self._build_filters(request.filters, "WHERE")
             if where_sql:
                 sql_parts.append(where_sql)
                 params.extend(where_params)
@@ -99,7 +96,7 @@ class TypeSafeQueryBuilder:
 
         # HAVING clause
         if request.having:
-            having_sql, having_params = self._build_filter(request.having, "HAVING")
+            having_sql, having_params = self._build_filters(request.having, "HAVING")
             if having_sql:
                 sql_parts.append(having_sql)
                 params.extend(having_params)
@@ -262,55 +259,77 @@ class TypeSafeQueryBuilder:
 
         return sql, params
 
-    def _build_filter(
+    def _build_filters(
         self,
-        filter_expr: FilterExpression,
+        filters: List[Filter],
         clause_type: str = "WHERE"
     ) -> Tuple[str, List[Any]]:
-        """Build WHERE or HAVING clause from filter expression"""
-        if not filter_expr:
+        """Build WHERE or HAVING clause from filters array (all ANDed)"""
+        if not filters:
             return "", []
 
-        sql, params = self._parse_filter_expression(filter_expr)
-        if sql:
-            return f"{clause_type} {sql}", params
-        return "", []
-
-    def _parse_filter_expression(self, expr: Union[Dict, LogicalFilter]) -> Tuple[str, List[Any]]:
-        """Parse filter expression recursively"""
         conditions = []
         params = []
 
-        # Handle LogicalFilter
-        if isinstance(expr, LogicalFilter):
-            if expr.and_:
-                and_parts = []
-                for sub_expr in expr.and_:
-                    sub_sql, sub_params = self._parse_filter_expression(sub_expr)
-                    if sub_sql:
-                        and_parts.append(f"({sub_sql})")
-                        params.extend(sub_params)
-                if and_parts:
-                    conditions.append(f"({' AND '.join(and_parts)})")
+        for filter_item in filters:
+            condition_sql, condition_params = self._build_single_filter(filter_item)
+            if condition_sql:
+                conditions.append(condition_sql)
+                params.extend(condition_params)
 
-            if expr.or_:
-                or_parts = []
-                for sub_expr in expr.or_:
-                    sub_sql, sub_params = self._parse_filter_expression(sub_expr)
-                    if sub_sql:
-                        or_parts.append(f"({sub_sql})")
-                        params.extend(sub_params)
-                if or_parts:
-                    conditions.append(f"({' OR '.join(or_parts)})")
+        if conditions:
+            sql = " AND ".join(conditions)
+            if clause_type:
+                return f"{clause_type} {sql}", params
+            else:
+                return sql, params
+        return "", []
 
-            if expr.not_:
-                sub_sql, sub_params = self._parse_filter_expression(expr.not_)
-                if sub_sql:
-                    conditions.append(f"NOT ({sub_sql})")
-                    params.extend(sub_params)
+    def _build_single_filter(self, filter_item: Filter) -> Tuple[str, List[Any]]:
+        """Build SQL for a single filter condition"""
+        field = filter_item.field
+        operator = filter_item.operator
+        value = filter_item.value
+
+        # Map operators to SQL
+        operator_map = {
+            'eq': '=',
+            'ne': '!=',
+            'gt': '>',
+            'gte': '>=',
+            'lt': '<',
+            'lte': '<=',
+            'in': 'IN',
+            'like': 'LIKE'
+        }
+
+        sql_operator = operator_map.get(operator)
+        if not sql_operator:
+            raise ValueError(f"Unsupported operator: {operator}")
+
+        # Handle IN operator
+        if operator == 'in':
+            if not isinstance(value, list):
+                raise ValueError(f"IN operator requires a list value, got {type(value)}")
+            placeholders = ', '.join([self.param_style] * len(value))
+            return f"{field} IN ({placeholders})", value
+
+        # Handle LIKE operator
+        elif operator == 'like':
+            return f"{field} LIKE {self.param_style}", [value]
+
+        # Handle standard comparison operators
+        else:
+            return f"{field} {sql_operator} {self.param_style}", [value]
+
+    # DEPRECATED - Keep for backwards compatibility but not used
+    def _parse_filter_expression(self, expr: Union[Dict, Any]) -> Tuple[str, List[Any]]:
+        """DEPRECATED: Old filter parsing method - kept for reference"""
+        conditions = []
+        params = []
 
         # Handle field filters (dict)
-        elif isinstance(expr, dict):
+        if isinstance(expr, dict):
             for field, value in expr.items():
                 # Skip logical operators (handled above)
                 if field in ["and", "or", "not"]:

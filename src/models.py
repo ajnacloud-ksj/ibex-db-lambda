@@ -72,67 +72,23 @@ class AggregateOp(str, Enum):
     PERCENTILE = "percentile"
 
 # ============================================================================
-# Filter Operators - Clean, Explicit Names
+# Filter Models - Simple Array Format (All filters ANDed)
 # ============================================================================
 
-class FilterOperator(BaseModel):
-    """Base class for all filter operators"""
-
-    # Comparison operators
-    eq: Optional[Any] = Field(None, description="Equals")
-    ne: Optional[Any] = Field(None, description="Not equals")
-    gt: Optional[Any] = Field(None, description="Greater than")
-    gte: Optional[Any] = Field(None, description="Greater than or equal")
-    lt: Optional[Any] = Field(None, description="Less than")
-    lte: Optional[Any] = Field(None, description="Less than or equal")
-
-    # Range operators
-    between: Optional[tuple[Any, Any]] = Field(None, description="Between two values (inclusive)")
-    not_between: Optional[tuple[Any, Any]] = Field(None, description="Not between two values")
-    in_: Optional[List[Any]] = Field(None, alias="in", description="In list of values")
-    not_in: Optional[List[Any]] = Field(None, description="Not in list of values")
-
-    # String operators
-    like: Optional[str] = Field(None, description="SQL LIKE pattern (%=wildcard)")
-    not_like: Optional[str] = Field(None, description="SQL NOT LIKE pattern")
-    ilike: Optional[str] = Field(None, description="Case-insensitive LIKE")
-    regex: Optional[str] = Field(None, description="Regular expression match")
-    starts_with: Optional[str] = Field(None, description="String starts with")
-    ends_with: Optional[str] = Field(None, description="String ends with")
-    contains: Optional[str] = Field(None, description="String contains")
-
-    # Null checks
-    is_null: Optional[bool] = Field(None, description="Value is NULL")
-    is_not_null: Optional[bool] = Field(None, description="Value is not NULL")
-
-    # Array/JSON operators
-    array_contains: Optional[Any] = Field(None, description="Array contains value")
-    array_overlaps: Optional[List[Any]] = Field(None, description="Array has overlapping values")
-    json_contains: Optional[Dict[str, Any]] = Field(None, description="JSON contains structure")
-    has_key: Optional[str] = Field(None, description="JSON/Map has key")
-
+class Filter(BaseModel):
+    """Single filter condition - all filters are ANDed together"""
+    
+    field: str = Field(..., description="Field name to filter on")
+    operator: str = Field(..., description="Filter operator: eq, ne, gt, gte, lt, lte, in, like")
+    value: Any = Field(..., description="Value to compare against")
+    
     @model_validator(mode='after')
-    def validate_single_operator(self):
-        """Ensure only one operator is specified per field"""
-        specified = [k for k, v in self.model_dump(exclude_none=True).items()]
-        if len(specified) > 1:
-            raise ValueError(f"Only one operator allowed per field. Found: {specified}")
-        if len(specified) == 0:
-            raise ValueError("At least one operator must be specified")
+    def validate_operator(self):
+        """Validate operator is supported"""
+        valid_operators = {'eq', 'ne', 'gt', 'gte', 'lt', 'lte', 'in', 'like'}
+        if self.operator not in valid_operators:
+            raise ValueError(f"Invalid operator '{self.operator}'. Must be one of: {valid_operators}")
         return self
-
-class LogicalFilter(BaseModel):
-    """Logical operators for combining filters"""
-
-    and_: Optional[List['FilterExpression']] = Field(None, alias="and")
-    or_: Optional[List['FilterExpression']] = Field(None, alias="or")
-    not_: Optional['FilterExpression'] = Field(None, alias="not")
-
-# FilterExpression can be a field filter or logical combination
-FilterExpression = Union[
-    Dict[str, Union[Any, FilterOperator]],  # Field filters
-    LogicalFilter  # Logical combinations
-]
 
 # ============================================================================
 # Projection Models
@@ -166,20 +122,23 @@ Projection = Union[str, ProjectionField]
 class AggregateField(BaseModel):
     """Aggregation field definition"""
 
-    op: AggregateOp = Field(..., description="Aggregation operation")
     field: Optional[str] = Field(None, description="Field to aggregate (None for COUNT(*))")
+    function: str = Field(..., description="Aggregation function: count, sum, avg, min, max")
     alias: str = Field(..., description="Output alias for aggregation")
     distinct: Optional[bool] = Field(False, description="Use DISTINCT")
-    filter: Optional[FilterExpression] = Field(None, description="Filter before aggregation")
 
     # Additional parameters for specific operations
-    percentile_value: Optional[float] = Field(None, description="Percentile value (0-1) for PERCENTILE op")
+    percentile_value: Optional[float] = Field(None, description="Percentile value (0-1) for percentile function")
 
     @model_validator(mode='after')
-    def validate_percentile(self):
-        """Validate percentile-specific requirements"""
-        if self.op == AggregateOp.PERCENTILE and self.percentile_value is None:
-            raise ValueError("percentile_value required for PERCENTILE operation")
+    def validate_function(self):
+        """Validate aggregation function"""
+        valid_functions = {'count', 'sum', 'avg', 'min', 'max', 'median', 'percentile'}
+        if self.function not in valid_functions:
+            raise ValueError(f"Invalid function '{self.function}'. Must be one of: {valid_functions}")
+        
+        if self.function == 'percentile' and self.percentile_value is None:
+            raise ValueError("percentile_value required for percentile function")
         if self.percentile_value is not None and not (0 <= self.percentile_value <= 1):
             raise ValueError("percentile_value must be between 0 and 1")
         return self
@@ -236,10 +195,10 @@ class QueryRequest(BaseModel):
         None,
         description="Aggregation functions (COUNT, SUM, AVG, etc.)"
     )
-    filter: Optional[FilterExpression] = Field(None, description="Filter conditions")
+    filters: Optional[List[Filter]] = Field(None, description="Filter conditions (all ANDed together)")
     join: Optional[List[JoinClause]] = Field(None, description="Table joins")
     group_by: Optional[List[str]] = Field(None, description="Group by fields")
-    having: Optional[FilterExpression] = Field(None, description="Post-aggregation filter")
+    having: Optional[List[Filter]] = Field(None, description="Post-aggregation filter")
     sort: Optional[List[SortField]] = Field(None, description="Sort order")
     distinct: Optional[bool] = Field(False, description="Return distinct rows")
 
@@ -292,10 +251,10 @@ class AggregateRequest(BaseModel):
     table: str = Field(..., description="Table name", min_length=1)
 
     # Aggregation pipeline
-    filter: Optional[FilterExpression] = Field(None, description="Pre-aggregation filter")
+    filters: Optional[List[Filter]] = Field(None, description="Pre-aggregation filter (all ANDed)")
     group_by: List[str] = Field(..., description="Fields to group by")
     aggregations: List[AggregateField] = Field(..., description="Aggregation operations")
-    having: Optional[FilterExpression] = Field(None, description="Post-aggregation filter")
+    having: Optional[List[Filter]] = Field(None, description="Post-aggregation filter (all ANDed)")
     sort: Optional[List[SortField]] = Field(None, description="Sort aggregated results")
 
     # Pagination
@@ -364,9 +323,6 @@ class QueryResponse(BaseModel, Generic[T]):
         if not self.success and self.error is None:
             raise ValueError("Failed response must include error")
         return self
-
-# Update forward references
-LogicalFilter.model_rebuild()
 
 # ============================================================================
 # Schema Definition Models for Table Creation
@@ -484,7 +440,7 @@ class UpdateRequest(BaseModel):
     namespace: str = "default"
     table: str
     updates: Dict[str, Any]
-    filter: FilterExpression
+    filters: List[Filter] = Field(..., description="Filter conditions (all ANDed together)")
     table_schema: Optional[SchemaDefinition] = Field(None, alias="schema")
 
 class UpdateResponse(BaseModel):
@@ -508,7 +464,7 @@ class DeleteRequest(BaseModel):
     tenant_id: str
     namespace: str = "default"
     table: str
-    filter: FilterExpression
+    filters: List[Filter] = Field(..., description="Filter conditions (all ANDed together)")
     mode: DeleteMode = DeleteMode.SOFT
     table_schema: Optional[SchemaDefinition] = Field(None, alias="schema")
 
@@ -524,7 +480,7 @@ class HardDeleteRequest(BaseModel):
     tenant_id: str
     namespace: str = "default"
     table: str
-    filter: FilterExpression
+    filters: List[Filter] = Field(..., description="Filter conditions (all ANDed together)")
     confirm: bool = Field(..., description="Must be True to confirm physical deletion")
     table_schema: Optional[SchemaDefinition] = Field(None, alias="schema")
 
@@ -561,9 +517,9 @@ class CompactRequest(BaseModel):
     )
 
     # Partition-specific compaction
-    partition_filter: Optional[FilterExpression] = Field(
+    partition_filters: Optional[List[Filter]] = Field(
         None,
-        description="Only compact files matching partition filter"
+        description="Only compact files matching partition filters (all ANDed)"
     )
 
     # Snapshot management

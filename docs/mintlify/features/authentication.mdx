@@ -1,0 +1,404 @@
+---
+title: Authentication
+description: 'Secure your API with API key authentication'
+---
+
+# API Key Authentication
+
+Ibex DB uses API key authentication to secure access to your data. All production requests require a valid API key.
+
+## How It Works
+
+Every request to the production API must include an API key in the header:
+
+```bash
+curl -X POST "https://your-domain.com/path" \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"operation": "LIST_TABLES", ...}'
+```
+
+<Note>
+API keys are tied to AWS API Gateway usage plans which control:
+- **Rate Limiting**: Requests per second
+- **Burst Capacity**: Temporary request spikes
+- **Daily Quota**: Maximum requests per day
+</Note>
+
+---
+
+## Setting Up API Keys
+
+### For Administrators
+
+#### 1. Create API Key
+
+```bash
+aws apigateway create-api-key \
+  --name "client-name-api-key" \
+  --enabled \
+  --region your-region
+```
+
+#### 2. Create Usage Plan
+
+```bash
+aws apigateway create-usage-plan \
+  --name "ibexdb-usage-plan" \
+  --api-stages apiId=YOUR_API_ID,stage=YOUR_STAGE \
+  --throttle rateLimit=100,burstLimit=200 \
+  --quota limit=10000,period=DAY \
+  --region your-region
+```
+
+**Usage Plan Configuration:**
+- **Rate Limit**: 100 requests/second
+- **Burst Limit**: 200 requests (temporary spikes)
+- **Daily Quota**: 10,000 requests/day
+
+#### 3. Link API Key to Usage Plan
+
+```bash
+aws apigateway create-usage-plan-key \
+  --usage-plan-id YOUR_PLAN_ID \
+  --key-id YOUR_KEY_ID \
+  --key-type API_KEY \
+  --region your-region
+```
+
+---
+
+## Using API Keys
+
+### In curl
+
+```bash
+curl -X POST "https://your-domain.com/path" \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{...}'
+```
+
+### In Postman
+
+1. Select your environment
+2. Set `api_key` variable with your key
+3. All requests automatically include the header:
+   ```
+   x-api-key: {{api_key}}
+   ```
+
+### In Python
+
+```python
+import requests
+
+headers = {
+    "x-api-key": "YOUR_API_KEY",
+    "Content-Type": "application/json"
+}
+
+response = requests.post(
+    "https://your-domain.com/path",
+    headers=headers,
+    json={
+        "operation": "QUERY",
+        "tenant_id": "my-tenant",
+        "table": "users"
+    }
+)
+```
+
+### In JavaScript
+
+```javascript
+const response = await fetch("https://your-domain.com/path", {
+  method: "POST",
+  headers: {
+    "x-api-key": "YOUR_API_KEY",
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    operation: "QUERY",
+    tenant_id: "my-tenant",
+    table: "users"
+  })
+});
+```
+
+---
+
+## Error Responses
+
+### Missing API Key
+
+```json
+{
+  "message": "Forbidden"
+}
+```
+
+**Cause**: Request missing `x-api-key` header
+
+**Solution**: Add API key header to your request
+
+### Invalid API Key
+
+```json
+{
+  "message": "Forbidden"
+}
+```
+
+**Cause**: API key is incorrect or not linked to usage plan
+
+**Solution**: Verify your API key and ensure it's linked to the correct usage plan
+
+### Rate Limit Exceeded
+
+```json
+{
+  "message": "Too Many Requests"
+}
+```
+
+**Cause**: Exceeded rate limit (requests per second)
+
+**Solution**: Implement exponential backoff or request higher limits
+
+### Quota Exceeded
+
+```json
+{
+  "message": "Limit Exceeded"
+}
+```
+
+**Cause**: Exceeded daily quota
+
+**Solution**: Wait for quota reset or request higher quota
+
+---
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Secure Storage">
+    **Never** commit API keys to version control!
+    
+    ✅ **Good**:
+    - Environment variables
+    - Secret management services (AWS Secrets Manager, HashiCorp Vault)
+    - CI/CD secret stores
+    
+    ❌ **Bad**:
+    - Hardcoded in source code
+    - Committed to git
+    - Stored in plain text files
+  </Accordion>
+
+  <Accordion title="Key Rotation">
+    Rotate API keys regularly for security:
+    
+    1. Create new API key
+    2. Link to usage plan
+    3. Update clients with new key
+    4. Monitor old key usage
+    5. Disable old key after migration
+    6. Delete old key after grace period
+  </Accordion>
+
+  <Accordion title="Monitoring">
+    Monitor API key usage:
+    
+    ```bash
+    # Get usage statistics
+    aws apigateway get-usage \
+      --usage-plan-id YOUR_PLAN_ID \
+      --start-date 2025-11-01 \
+      --end-date 2025-11-30 \
+      --region your-region
+    ```
+    
+    Track:
+    - Request count
+    - Error rates
+    - Throttled requests
+    - Quota usage
+  </Accordion>
+
+  <Accordion title="Environment-Specific Keys">
+    Use different API keys for each environment:
+    
+    - **Development**: Lower limits, easy to regenerate
+    - **Staging**: Production-like limits for testing
+    - **Production**: Strict limits, monitored closely
+    
+    This prevents test traffic from affecting production quotas.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Local Development
+
+<Note>
+**No API key required for local development!**
+
+When running FastAPI locally (`http://localhost:9000`), API key authentication is disabled for easier development and testing.
+</Note>
+
+```bash
+# No x-api-key header needed locally
+curl -X POST "http://localhost:9000/database" \
+  -H "Content-Type: application/json" \
+  -d '{"operation": "LIST_TABLES", ...}'
+```
+
+---
+
+## Custom Domain Setup
+
+When using a custom domain with API Gateway:
+
+### 1. Create Custom Domain
+
+```bash
+aws apigateway create-domain-name \
+  --domain-name your-domain.com \
+  --regional-certificate-arn YOUR_CERT_ARN \
+  --endpoint-configuration types=REGIONAL \
+  --region your-region
+```
+
+### 2. Create Base Path Mapping
+
+```bash
+aws apigateway create-base-path-mapping \
+  --domain-name your-domain.com \
+  --rest-api-id YOUR_API_ID \
+  --stage YOUR_STAGE \
+  --base-path your-path \
+  --region your-region
+```
+
+### 3. Update DNS
+
+Point your domain to the API Gateway endpoint using a CNAME record.
+
+**Result**: Clean URLs like `https://your-domain.com/your-path`
+
+---
+
+## Security Considerations
+
+<Warning>
+**API keys provide basic authentication but are not a complete security solution.**
+
+For additional security:
+- Use HTTPS only (enforced by API Gateway)
+- Implement request signing for sensitive operations
+- Add IP whitelisting if needed
+- Monitor for unusual usage patterns
+- Implement tenant-level access controls in your application
+</Warning>
+
+### Multi-Tenancy
+
+API keys authenticate **users**, but Ibex DB uses `tenant_id` for **data isolation**:
+
+```json
+{
+  "operation": "QUERY",
+  "tenant_id": "tenant-a",  // ← This isolates data
+  "table": "users"
+}
+```
+
+**Best Practice**: Your application should:
+1. Authenticate users (API key)
+2. Map users to tenants
+3. Only allow users to access their tenant's data
+
+---
+
+## Cost Considerations
+
+API Gateway API key authentication is included in standard API Gateway pricing:
+
+- **Free Tier**: 1 million API calls/month for 12 months
+- **After Free Tier**: $3.50 per million requests
+
+<Tip>
+API keys are significantly cheaper than AWS Cognito for simple authentication needs:
+- **API Keys**: $3.50 per million requests
+- **Cognito**: $0.0055 per MAU + $15/month minimum
+
+For most use cases, API keys provide excellent cost-performance.
+</Tip>
+
+---
+
+## Alternative Authentication
+
+While Ibex DB uses API keys by default, you can implement custom authentication:
+
+### AWS Cognito
+
+Use Cognito for user management and JWT-based authentication:
+
+1. Create Cognito User Pool
+2. Configure API Gateway Cognito Authorizer
+3. Replace API key header with JWT token
+
+### Custom Lambda Authorizer
+
+Implement custom authentication logic:
+
+1. Create Lambda authorizer function
+2. Attach to API Gateway
+3. Validate custom tokens/credentials
+
+### IAM Authentication
+
+Use AWS IAM for machine-to-machine authentication:
+
+1. Use AWS Signature Version 4
+2. Configure IAM authorizer in API Gateway
+3. Grant permissions via IAM policies
+
+---
+
+## Quick Reference
+
+### Required Header
+
+```
+x-api-key: YOUR_API_KEY
+```
+
+### Common Issues
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| `Forbidden` | Missing/invalid API key | Check header and key value |
+| `Too Many Requests` | Rate limit exceeded | Implement backoff |
+| `Limit Exceeded` | Quota exceeded | Wait or request increase |
+| `Not Found` | Wrong endpoint | Verify URL and path |
+
+### Testing API Keys
+
+```bash
+# Test API key
+curl -X POST "https://your-domain.com/path" \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"operation":"LIST_TABLES","tenant_id":"test","namespace":"default"}' \
+  -v
+```
+
+Look for:
+- ✅ `200 OK` - API key works
+- ❌ `403 Forbidden` - API key invalid
+- ❌ `429 Too Many Requests` - Rate limited
+

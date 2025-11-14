@@ -1,5 +1,5 @@
 {
-  "name": "S3 ACID Database",
+  "name": "Ibex DB",
   "logo": {
     "dark": "/logo/dark.svg",
     "light": "/logo/light.svg"
@@ -17,7 +17,7 @@
   "topbarLinks": [
     {
       "name": "GitHub",
-      "url": "https://github.com/yourusername/s3-acid-database"
+      "url": "https://github.com/yourusername/ibex-db"
     }
   ],
   "topbarCtaButton": {
@@ -42,6 +42,14 @@
       ]
     },
     {
+      "group": "Security & Performance",
+      "pages": [
+        "features/authentication",
+        "features/performance",
+        "features/compaction"
+      ]
+    },
+    {
       "group": "API Reference",
       "pages": [
         "api/overview",
@@ -54,13 +62,13 @@
       ]
     },
     {
-      "group": "Features",
+      "group": "Advanced Features",
       "pages": [
-        "features/column-selection",
+        "features/time-travel",
+        "features/bulk-operations",
         "features/aggregations",
         "features/soft-delete",
-        "features/audit-trail",
-        "features/compaction"
+        "features/audit-trail"
       ]
     },
     {
@@ -70,9 +78,17 @@
         "examples/analytics",
         "examples/audit-queries"
       ]
+    },
+    {
+      "group": "Deployment",
+      "pages": [
+        "deployment/aws-lambda",
+        "deployment/custom-domain",
+        "deployment/postman-setup"
+      ]
     }
   ],
   "footerSocials": {
-    "github": "https://github.com/yourusername/s3-acid-database"
+    "github": "https://github.com/yourusername/ibex-db"
   }
 }

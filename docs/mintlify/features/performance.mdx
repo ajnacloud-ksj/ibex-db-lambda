@@ -1,0 +1,598 @@
+---
+title: Performance
+description: 'Understanding and optimizing query performance'
+---
+
+# Performance Optimization
+
+Ibex DB delivers excellent performance with sub-100ms query times for most operations. This guide explains how the system achieves this performance and how to optimize your queries.
+
+## Performance Metrics
+
+### Production Performance (4GB Lambda, 16 Threads)
+
+| Operation | Typical Time | Notes |
+|-----------|-------------|-------|
+| Simple Query | 80-120ms | No filters, small result set |
+| Filtered Query | 90-150ms | With WHERE clause |
+| Aggregations | 100-200ms | COUNT, SUM, AVG, etc. |
+| Write Operation | 1200-2000ms | Includes Iceberg commit |
+| Bulk Update | 1500-3000ms | Depends on record count |
+| Compaction | 200-500ms | Depends on file count |
+| Cold Start | ~4000ms | First request after idle |
+
+<Tip>
+**Warm requests** (after initial cold start) consistently achieve <150ms response times!
+</Tip>
+
+---
+
+## Understanding Execution Time
+
+Responses include two timing metrics:
+
+```json
+{
+  "success": true,
+  "data": [...],
+  "metadata": {
+    "execution_time_ms": 104.26,  // DuckDB query time
+    "cache_hit": true
+  },
+  "execution_time_ms": 41.21  // Total API response time
+}
+```
+
+### What Each Metric Means
+
+**`metadata.execution_time_ms` (104.26ms)**
+- Pure DuckDB SQL query execution
+- Time to scan Parquet files
+- Time to process filters and aggregations
+- Time to return results
+
+**Root `execution_time_ms` (41.21ms)**
+- Total API request time
+- Includes:
+  - Request parsing
+  - Metadata path lookup (cached or Glue API)
+  - DuckDB query execution
+  - Response serialization
+  - Lambda framework overhead
+
+### Why Is Total Time Sometimes Less?
+
+When total time < query time, it means metadata lookup was cached:
+
+```
+Total Time (41ms):
+  ├─ Request parsing: 0.3ms
+  ├─ Metadata lookup: 0.1ms (CACHED!)
+  ├─ Query execution: 40.04ms
+  └─ Serialization: 0.66ms
+```
+
+Without cache (first query):
+```
+Total Time (312ms):
+  ├─ Request parsing: 0.3ms
+  ├─ Metadata lookup: 217ms (AWS Glue API call)
+  ├─ Query execution: 95.5ms
+  └─ Serialization: 0.7ms
+```
+
+---
+
+## Caching Strategy
+
+### Metadata Cache (5 minutes)
+
+Ibex DB caches table metadata locations to avoid repeated AWS Glue API calls:
+
+**First Query** (cache miss):
+```json
+{
+  "metadata": {
+    "execution_time_ms": 95.5,
+    "cache_hit": false
+  },
+  "execution_time_ms": 312.7
+}
+```
+
+**Subsequent Queries** (cache hit):
+```json
+{
+  "metadata": {
+    "execution_time_ms": 94.8,
+    "cache_hit": true
+  },
+  "execution_time_ms": 102.3
+}
+```
+
+**Savings**: ~210ms per query!
+
+<Note>
+Cache TTL is configurable in `config.json`:
+```json
+{
+  "duckdb": {
+    "metadata_cache_ttl": 300  // seconds
+  }
+}
+```
+</Note>
+
+---
+
+## DuckDB Optimizations
+
+### Memory Configuration
+
+```json
+{
+  "duckdb": {
+    "memory_limit": "3.5GB",
+    "threads": 16
+  }
+}
+```
+
+**Lambda Memory**: 4096 MB
+- DuckDB: 3.5 GB
+- Python/Lambda: 0.5 GB
+
+### Query Optimizations
+
+Ibex DB enables several DuckDB performance features:
+
+```sql
+SET enable_object_cache=true;
+SET enable_http_metadata_cache=true;
+SET force_compression='zstd';
+SET preserve_insertion_order=false;
+```
+
+**Benefits**:
+- **Object Cache**: Reuse S3 connections
+- **HTTP Metadata Cache**: Reduce S3 LIST calls
+- **ZSTD Compression**: Faster decompression
+- **No Order Preservation**: Faster parallel processing
+
+---
+
+## Query Optimization Tips
+
+### 1. Always Include Tenant ID
+
+✅ **Fast** (uses partition pruning):
+```json
+{
+  "filter": {
+    "_tenant_id": {"eq": "my-tenant"},
+    "age": {"gte": 25}
+  }
+}
+```
+
+❌ **Slow** (full table scan):
+```json
+{
+  "filter": {
+    "age": {"gte": 25}
+  }
+}
+```
+
+**Impact**: 10-100x faster with tenant_id!
+
+### 2. Use Projections
+
+✅ **Fast** (only reads needed columns):
+```json
+{
+  "projection": ["id", "name", "email"]
+}
+```
+
+❌ **Slow** (reads all columns):
+```json
+{
+  // No projection specified
+}
+```
+
+**Impact**: 2-5x faster for wide tables!
+
+### 3. Limit Result Sets
+
+✅ **Fast**:
+```json
+{
+  "limit": 100,
+  "offset": 0
+}
+```
+
+❌ **Slow**:
+```json
+{
+  // No limit - returns all rows
+}
+```
+
+**Impact**: Crucial for large tables!
+
+### 4. Use Indexed Fields in Filters
+
+**Fast (indexed)**:
+- `_tenant_id` (partition key)
+- `_record_id`
+- Any field in partition spec
+
+**Slower (full scan)**:
+- `_version`
+- `_deleted`
+- Non-indexed user fields
+
+### 5. Avoid Complex LIKE Patterns
+
+✅ **Faster**:
+```json
+{
+  "filter": {
+    "name": {"like": "John%"}  // Prefix match
+  }
+}
+```
+
+❌ **Slower**:
+```json
+{
+  "filter": {
+    "name": {"like": "%John%"}  // Contains (full scan)
+  }
+}
+```
+
+---
+
+## Write Performance
+
+### Write Operation Timing
+
+```
+Total Write Time (1847ms):
+  ├─ Query matching records: 95ms
+  ├─ Apply updates in memory: 12ms
+  ├─ Convert to Arrow format: 34ms
+  ├─ Write Parquet to S3: 856ms
+  ├─ Commit to catalog: 723ms
+  └─ Update metadata: 127ms
+```
+
+### Optimization Strategies
+
+#### 1. Batch Writes
+
+✅ **Good** (single write):
+```json
+{
+  "operation": "WRITE",
+  "records": [
+    {...},  // 1000 records
+    {...}
+  ]
+}
+```
+
+❌ **Bad** (many small writes):
+```json
+// 1000 separate write requests
+```
+
+**Impact**: 100x faster to batch!
+
+#### 2. Configure Parquet Settings
+
+```json
+{
+  "iceberg": {
+    "write": {
+      "target_file_size_mb": 256,
+      "compression_codec": "zstd",
+      "parquet_row_group_size": 16384
+    }
+  }
+}
+```
+
+**Tuning**:
+- **Larger files** (256MB): Faster compaction, fewer files
+- **Smaller row groups** (16384): Better parallelism
+- **ZSTD compression**: Best balance of speed and compression
+
+#### 3. Run Compaction Regularly
+
+```json
+{
+  "operation": "COMPACT",
+  "tenant_id": "my-tenant",
+  "table": "users",
+  "force": false,  // Opportunistic
+  "expire_snapshots": true
+}
+```
+
+**Impact**: Keeps query performance fast by reducing file count!
+
+---
+
+## Cold Start Optimization
+
+### What Causes Cold Starts?
+
+- Lambda container initialization: ~2000ms
+- Python imports: ~1000ms
+- DuckDB/PyIceberg setup: ~1000ms
+
+**Total**: ~4000ms
+
+### Mitigation Strategies
+
+<AccordionGroup>
+  <Accordion title="1. Keep Lambda Warm">
+    Use a scheduled CloudWatch Event to ping Lambda every 5 minutes:
+    
+    ```json
+    {
+      "operation": "LIST_TABLES",
+      "tenant_id": "warmup",
+      "namespace": "default"
+    }
+    ```
+    
+    **Cost**: ~$0.01/month
+  </Accordion>
+
+  <Accordion title="2. Provisioned Concurrency">
+    AWS Lambda Provisioned Concurrency keeps containers warm:
+    
+    **Pros**:
+    - Eliminates cold starts
+    - Consistent performance
+    
+    **Cons**:
+    - Higher cost (~$0.015/hour)
+    - May not be cost-effective for low traffic
+  </Accordion>
+
+  <Accordion title="3. Optimize Imports">
+    Import only what you need:
+    
+    ✅ **Good**:
+    ```python
+    from pyiceberg.catalog import load_catalog
+    from duckdb import connect
+    ```
+    
+    ❌ **Bad**:
+    ```python
+    import pyiceberg  # Imports everything
+    import duckdb  # Imports everything
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Monitoring Performance
+
+### CloudWatch Metrics
+
+Monitor these metrics:
+
+- **Duration**: Total execution time
+- **Init Duration**: Cold start time
+- **Memory Used**: Peak memory usage
+- **Throttles**: Rate limit errors
+- **Errors**: Failed requests
+
+### Custom Metrics
+
+Log custom metrics in responses:
+
+```json
+{
+  "metadata": {
+    "execution_time_ms": 104.26,
+    "scanned_bytes": 9747,
+    "scanned_rows": 100,
+    "cache_hit": true
+  }
+}
+```
+
+**Track**:
+- Cache hit rate (should be >80%)
+- Average execution time
+- P95/P99 latency
+- Scanned data volume
+
+---
+
+## Scaling Considerations
+
+### Concurrent Requests
+
+Lambda auto-scales to handle concurrent requests:
+
+- **Default limit**: 1000 concurrent executions
+- **Each execution**: Independent DuckDB instance
+- **Shared**: S3 data (read-only)
+
+**Bottleneck**: S3 bandwidth (not DuckDB)
+
+### Table Partitioning
+
+Partition large tables by `_tenant_id`:
+
+```json
+{
+  "partition": {
+    "fields": ["_tenant_id"]
+  }
+}
+```
+
+**Benefits**:
+- Partition pruning reduces scanned data
+- Parallel processing per tenant
+- Better cache locality
+
+### Compaction Strategy
+
+Regular compaction is crucial for performance:
+
+```json
+{
+  "iceberg": {
+    "compaction": {
+      "enabled": true,
+      "small_file_threshold_mb": 64,
+      "min_files_to_compact": 5,
+      "max_files_per_compaction": 100
+    }
+  }
+}
+```
+
+**Impact**:
+- Fewer files = faster queries
+- Larger files = better compression
+- Less S3 metadata overhead
+
+---
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Query Patterns">
+    **Do**:
+    - ✅ Filter on `_tenant_id` first
+    - ✅ Use projections to limit columns
+    - ✅ Add `limit` to prevent huge result sets
+    - ✅ Use indexed fields in filters
+    
+    **Don't**:
+    - ❌ Query without tenant_id
+    - ❌ Return all columns
+    - ❌ Fetch unlimited rows
+    - ❌ Use complex LIKE patterns
+  </Accordion>
+
+  <Accordion title="Write Patterns">
+    **Do**:
+    - ✅ Batch writes (100-5000 records)
+    - ✅ Run compaction after bulk writes
+    - ✅ Use ZSTD compression
+    - ✅ Monitor file count
+    
+    **Don't**:
+    - ❌ Write one record at a time
+    - ❌ Skip compaction
+    - ❌ Use too-small target file sizes
+    - ❌ Ignore small file warnings
+  </Accordion>
+
+  <Accordion title="Resource Configuration">
+    **Production**:
+    - Lambda: 4096 MB
+    - DuckDB: 3.5 GB
+    - Threads: 16
+    - Cache TTL: 300s
+    
+    **Development**:
+    - Lambda: 2048 MB
+    - DuckDB: 1.5 GB
+    - Threads: 8
+    - Cache TTL: 60s
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Troubleshooting Slow Queries
+
+### Query Takes >1s
+
+**Check**:
+1. Is `_tenant_id` in filter?
+2. Is table compacted recently?
+3. How many files are being scanned?
+4. Is result set too large?
+
+**Solutions**:
+- Add `_tenant_id` filter
+- Run `COMPACT` operation
+- Add projection to limit columns
+- Add `limit` to reduce rows
+
+### High Cache Miss Rate
+
+**Causes**:
+- Tables changing frequently
+- Cache TTL too short
+- Many different tables queried
+
+**Solutions**:
+- Increase cache TTL
+- Batch similar queries
+- Use fewer tables
+
+### Memory Errors
+
+**Error**: `Out of memory`
+
+**Solutions**:
+- Increase Lambda memory
+- Reduce DuckDB threads
+- Add projection to query fewer columns
+- Process in smaller batches
+
+---
+
+## Quick Reference
+
+### Performance Checklist
+
+- [ ] Include `_tenant_id` in all filters
+- [ ] Use projections to limit columns
+- [ ] Add `limit` to prevent huge results
+- [ ] Batch write operations
+- [ ] Run compaction regularly
+- [ ] Monitor cache hit rate
+- [ ] Configure appropriate Lambda memory
+- [ ] Use indexed fields in filters
+
+### Configuration Values
+
+| Setting | Development | Production |
+|---------|------------|------------|
+| Lambda Memory | 2048 MB | 4096 MB |
+| DuckDB Memory | 1.5 GB | 3.5 GB |
+| DuckDB Threads | 8 | 16 |
+| Cache TTL | 60s | 300s |
+| Target File Size | 128 MB | 256 MB |
+
+### Expected Performance
+
+| Query Type | Target Time |
+|------------|-------------|
+| Simple query | <100ms |
+| Filtered query | <150ms |
+| Aggregation | <200ms |
+| Write (100 records) | <2000ms |
+| Bulk update (1000 records) | <3000ms |
+

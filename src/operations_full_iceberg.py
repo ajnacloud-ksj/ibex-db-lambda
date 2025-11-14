@@ -332,7 +332,7 @@ class FullIcebergOperations:
             for agg in aggregations:
                 if isinstance(agg, AggregateField):
                     # Build aggregation function
-                    func = agg.op.value.upper()
+                    func = agg.function.upper()
 
                     if agg.field:
                         # Aggregation on specific field
@@ -600,9 +600,9 @@ class FullIcebergOperations:
 
             # Add custom filters
             params = []
-            if request.filter:
+            if request.filters:
                 builder = TypeSafeQueryBuilder()
-                filter_sql, params = builder._parse_filter_expression(request.filter)
+                filter_sql, params = builder._build_filters(request.filters, "")
                 if filter_sql:
                     sql += f" AND ({filter_sql})"
 
@@ -614,7 +614,7 @@ class FullIcebergOperations:
             # Add HAVING clause (post-aggregation filter)
             if request.having:
                 builder = TypeSafeQueryBuilder()
-                having_sql, having_params = builder._parse_filter_expression(request.having)
+                having_sql, having_params = builder._build_filters(request.having, "")
                 if having_sql:
                     sql += f" HAVING {having_sql}"
                     if having_params:
@@ -684,7 +684,7 @@ class FullIcebergOperations:
                 tenant_id=request.tenant_id,
                 namespace=request.namespace,
                 table=request.table,
-                filter=request.filter
+                filters=request.filters
             )
             query_result = self.query(query_req)
 
@@ -757,7 +757,7 @@ class FullIcebergOperations:
                     "_deleted": True,
                     "_deleted_at": datetime.utcnow()
                 },
-                filter=request.filter
+                filters=request.filters
             )
             update_result = self.update(update_req)
 
@@ -803,7 +803,7 @@ class FullIcebergOperations:
 
             # Build filter SQL
             builder = TypeSafeQueryBuilder()
-            filter_sql, params = builder._parse_filter_expression(request.filter)
+            filter_sql, params = builder._build_filters(request.filters, "")
 
             count_sql = f"""
                 SELECT COUNT(*) as count FROM iceberg_scan('{metadata_path}')
@@ -826,11 +826,11 @@ class FullIcebergOperations:
                 )
 
             # Use PyIceberg's delete to physically remove rows
-            # Build Iceberg filter expression from our filter
+            # Build Iceberg filter expression from our filters array
             from pyiceberg.expressions import EqualTo, GreaterThan, LessThan, And, Or
 
-            # Convert our filter to Iceberg expression
-            iceberg_filter = self._build_iceberg_filter(request.filter)
+            # Convert our filters to Iceberg expression
+            iceberg_filter = self._build_iceberg_filter_from_array(request.filters)
 
             # Also add tenant filter
             tenant_filter = EqualTo("_tenant_id", request.tenant_id)
@@ -863,8 +863,52 @@ class FullIcebergOperations:
                 error=ErrorDetail(code="HARD_DELETE_ERROR", message=str(e))
             )
 
+    def _build_iceberg_filter_from_array(self, filters: List) -> Any:
+        """Convert filters array to PyIceberg filter expression (all ANDed)"""
+        from pyiceberg.expressions import (
+            EqualTo, NotEqualTo, GreaterThan, LessThan, 
+            GreaterThanOrEqual, LessThanOrEqual, In, And
+        )
+
+        if not filters:
+            return None
+
+        iceberg_filters = []
+        for filter_item in filters:
+            field = filter_item.field
+            operator = filter_item.operator
+            value = filter_item.value
+
+            if operator == "eq":
+                iceberg_filters.append(EqualTo(field, value))
+            elif operator == "ne":
+                iceberg_filters.append(NotEqualTo(field, value))
+            elif operator == "gt":
+                iceberg_filters.append(GreaterThan(field, value))
+            elif operator == "gte":
+                iceberg_filters.append(GreaterThanOrEqual(field, value))
+            elif operator == "lt":
+                iceberg_filters.append(LessThan(field, value))
+            elif operator == "lte":
+                iceberg_filters.append(LessThanOrEqual(field, value))
+            elif operator == "in":
+                iceberg_filters.append(In(field, value))
+            # Note: LIKE is not supported by PyIceberg expressions
+
+        if len(iceberg_filters) == 0:
+            return None
+        elif len(iceberg_filters) == 1:
+            return iceberg_filters[0]
+        else:
+            # Combine with AND
+            result = iceberg_filters[0]
+            for f in iceberg_filters[1:]:
+                result = And(result, f)
+            return result
+
+    # DEPRECATED - Keep old method for reference
     def _build_iceberg_filter(self, filter_expr: Dict[str, Any]):
-        """Convert our filter expression to PyIceberg filter"""
+        """DEPRECATED: Convert old filter expression to PyIceberg filter"""
         from pyiceberg.expressions import EqualTo, GreaterThan, LessThan, GreaterThanOrEqual, LessThanOrEqual, And, Or
 
         if not filter_expr:

@@ -5,14 +5,56 @@ description: 'Get up and running in 5 minutes'
 
 # Quickstart Guide
 
-Get your S3 ACID Database running locally in minutes using Docker.
+Get started with Ibex DB in minutes - either locally with Docker or using the production API.
 
-## Prerequisites
+## Production API
+
+<Tip>
+**Already deployed and ready to use!**
+
+The production API is live with a clean, professional URL and API key authentication.
+</Tip>
+
+### Step 1: Get Your API Key
+
+Contact your administrator to get an API key. You'll receive:
+- **Production URL**: Your custom domain endpoint
+- **API Key**: A secure key for authentication
+
+### Step 2: Make Your First Request
+
+```bash
+curl -X POST "https://your-domain.com/path" \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "operation": "LIST_TABLES",
+    "tenant_id": "your-tenant",
+    "namespace": "default"
+  }'
+```
+
+### Step 3: Import Postman Collection
+
+We provide complete Postman collections with 40+ pre-configured requests:
+
+1. Import environment: `postman/environments/Production_CustomDomain.postman_environment.json`
+2. Import collection: `postman/collections/Ibex_DB_AWS.postman_collection.json`
+3. Set your API key in the environment
+4. Start testing!
+
+---
+
+## Local Development
+
+Run Ibex DB locally using Docker for development and testing.
+
+### Prerequisites
 
 - Docker & Docker Compose
 - curl or Postman (for testing)
 
-## Start the Service
+### Start the Service
 
 <Steps>
   <Step title="Navigate to docker directory">
@@ -41,116 +83,201 @@ Get your S3 ACID Database running locally in minutes using Docker.
     ```json
     {
       "status": "healthy",
-      "service": "S3 ACID Database",
+      "service": "Ibex DB",
       "version": "1.0.0"
     }
     ```
   </Step>
 </Steps>
 
-## Your First Request
+### Your First Local Request
 
-### 1. Create a Table
+<Steps>
+  <Step title="Create a Table">
+    ```bash
+    curl -X POST http://localhost:9000/database \
+      -H "Content-Type: application/json" \
+      -d '{
+        "operation": "CREATE_TABLE",
+        "tenant_id": "my-tenant",
+        "namespace": "default",
+        "table": "users",
+        "schema": {
+          "fields": {
+            "id": {"type": "long", "required": true},
+            "name": {"type": "string", "required": true},
+            "email": {"type": "string", "required": false},
+            "age": {"type": "integer", "required": false}
+          }
+        }
+      }'
+    ```
+  </Step>
 
-```bash
-curl -X POST http://localhost:9000/database \
-  -H "Content-Type: application/json" \
-  -d '{
-    "operation": "CREATE_TABLE",
-    "tenant_id": "my-tenant",
-    "namespace": "default",
-    "table": "users",
-    "schema": {
-      "fields": {
-        "name": {"type": "string", "required": true},
-        "email": {"type": "string", "required": true},
-        "age": {"type": "integer", "required": false}
+  <Step title="Insert Records">
+    ```bash
+    curl -X POST http://localhost:9000/database \
+      -H "Content-Type: application/json" \
+      -d '{
+        "operation": "WRITE",
+        "tenant_id": "my-tenant",
+        "table": "users",
+        "records": [
+          {"id": 1, "name": "Alice", "email": "alice@example.com", "age": 30},
+          {"id": 2, "name": "Bob", "email": "bob@example.com", "age": 25}
+        ]
+      }'
+    ```
+  </Step>
+
+  <Step title="Query Data">
+    ```bash
+    curl -X POST http://localhost:9000/database \
+      -H "Content-Type: application/json" \
+      -d '{
+        "operation": "QUERY",
+        "tenant_id": "my-tenant",
+        "table": "users",
+        "filter": {"age": {"gte": 25}},
+        "sort": [{"field": "age", "order": "DESC"}]
+      }'
+    ```
+
+    **Response:**
+    ```json
+    {
+      "success": true,
+      "data": [
+        {
+          "_tenant_id": "my-tenant",
+          "_record_id": "abc123",
+          "_timestamp": "2025-11-14T21:00:00Z",
+          "_version": 1,
+          "_deleted": false,
+          "_deleted_at": null,
+          "id": 1,
+          "name": "Alice",
+          "email": "alice@example.com",
+          "age": 30
+        }
+      ],
+      "metadata": {
+        "row_count": 2,
+        "execution_time_ms": 95.5,
+        "scanned_bytes": 1024,
+        "scanned_rows": 2,
+        "cache_hit": false
       }
     }
-  }'
-```
+    ```
+  </Step>
+</Steps>
 
-### 2. Insert Records
-
-```bash
-curl -X POST http://localhost:9000/database \
-  -H "Content-Type: application/json" \
-  -d '{
-    "operation": "WRITE",
-    "tenant_id": "my-tenant",
-    "table": "users",
-    "records": [
-      {"name": "Alice", "email": "alice@example.com", "age": 30},
-      {"name": "Bob", "email": "bob@example.com", "age": 25}
-    ]
-  }'
-```
-
-### 3. Query Data
-
-```bash
-curl -X POST http://localhost:9000/database \
-  -H "Content-Type: application/json" \
-  -d '{
-    "operation": "QUERY",
-    "tenant_id": "my-tenant",
-    "table": "users"
-  }'
-```
+---
 
 ## Using Postman
 
 <Tip>
-We provide a complete Postman collection with all features!
+We provide complete Postman collections for both production and local development!
 </Tip>
 
-1. Import collection:
-   ```
-   postman/collections/S3_ACID_Database_FastAPI_Complete.postman_collection.json
-   ```
+### Production Testing
 
-2. Import environment:
-   ```
-   postman/environments/FastAPI.postman_environment.json
-   ```
+1. Import files:
+   - `postman/environments/Production_CustomDomain.postman_environment.json`
+   - `postman/collections/Ibex_DB_AWS.postman_collection.json`
 
-3. Run requests in order!
+2. Set your API key in the environment
+
+3. Select "Production - Custom Domain" environment
+
+4. Run requests!
+
+### Local Development
+
+1. Import files:
+   - `postman/environments/FastAPI_Local.postman_environment.json`
+   - `postman/collections/Ibex_DB_FastAPI.postman_collection.json`
+
+2. Start local services
+
+3. Select "FastAPI - Local Development" environment
+
+4. Run requests (no API key needed)!
+
+---
+
+## Understanding System Fields
+
+Every record automatically includes audit fields:
+
+| Field | Description |
+|-------|-------------|
+| `_tenant_id` | Tenant identifier for multi-tenancy |
+| `_record_id` | Unique record identifier (MD5 hash) |
+| `_timestamp` | Last modification timestamp |
+| `_version` | Version number (increments on update) |
+| `_deleted` | Soft delete flag |
+| `_deleted_at` | Deletion timestamp |
+
+These fields enable:
+- **Version History**: Track all changes to a record
+- **Time Travel**: Query data as it existed at any point in time
+- **Audit Trail**: Complete compliance and audit capabilities
+- **Soft Deletes**: Recover accidentally deleted data
+
+---
 
 ## Next Steps
 
 <CardGroup cols={2}>
-  <Card title="API Reference" icon="book" href="/api/overview">
-    Learn all operations
+  <Card title="Authentication" icon="key" href="/features/authentication">
+    Learn about API key setup
   </Card>
-  <Card title="Features" icon="sparkles" href="/features/column-selection">
-    Explore advanced features
+  <Card title="API Reference" icon="book" href="/api/overview">
+    Explore all operations
+  </Card>
+  <Card title="Time Travel" icon="clock-rotate-left" href="/features/time-travel">
+    Query historical data
   </Card>
   <Card title="Examples" icon="code" href="/examples/basic-crud">
     See real-world examples
   </Card>
-  <Card title="Configuration" icon="gear" href="/installation">
-    Production deployment
-  </Card>
 </CardGroup>
+
+---
 
 ## Quick Tips
 
 <AccordionGroup>
-  <Accordion title="View S3 Data">
+  <Accordion title="View Local S3 Data">
     Access MinIO console at http://localhost:9006
     - Username: `minioadmin`
     - Password: `minioadmin`
   </Accordion>
 
+  <Accordion title="Performance Optimization">
+    **Production Settings:**
+    - Lambda Memory: 4096 MB
+    - DuckDB Memory: 3.5 GB
+    - DuckDB Threads: 16
+    - Metadata Cache: 5 minutes
+    
+    Expected performance:
+    - Reads: 80-150ms
+    - Writes: 1200-2000ms
+  </Accordion>
+
   <Accordion title="Run Tests">
+    Test compaction locally:
     ```bash
     bash tests/e2e/test_fastapi_compaction.sh
     ```
   </Accordion>
 
-  <Accordion title="Stop Services">
+  <Accordion title="Stop Local Services">
     ```bash
-    docker compose down
+    cd docker && docker compose down
     ```
   </Accordion>
 </AccordionGroup>

@@ -3,18 +3,18 @@ title: Introduction
 description: 'Production-ready ACID database built on Apache Iceberg, DuckDB, and S3'
 ---
 
-# Welcome to S3 ACID Database
+# Welcome to Ibex DB
 
-A **serverless, production-ready ACID database** that combines the power of Apache Iceberg, DuckDB, and S3 to deliver enterprise-grade data management with zero infrastructure overhead.
+A **serverless, production-ready ACID database** that combines the power of Apache Iceberg, DuckDB, and AWS S3 to deliver enterprise-grade data management with zero infrastructure overhead.
 
-## What is S3 ACID Database?
+## What is Ibex DB?
 
-S3 ACID Database provides full ACID transactions on top of S3 object storage, making it perfect for:
+Ibex DB provides full ACID transactions on top of S3 object storage, making it perfect for:
 
-- **Analytics workloads** with complex aggregations
-- **Audit trails** with complete version history
-- **Multi-tenant applications** with built-in isolation
-- **Serverless architectures** requiring zero ops
+- **Analytics workloads** with complex aggregations and sub-100ms query times
+- **Audit trails** with complete version history and time travel queries
+- **Multi-tenant SaaS** applications with built-in tenant isolation
+- **Serverless architectures** with automatic scaling and zero ops
 
 ## Key Features
 
@@ -22,20 +22,26 @@ S3 ACID Database provides full ACID transactions on top of S3 object storage, ma
   <Card title="ACID Transactions" icon="shield-check">
     Full ACID guarantees via Apache Iceberg with PyIceberg for writes
   </Card>
-  <Card title="Fast Queries" icon="bolt">
-    DuckDB with native Iceberg support for lightning-fast analytics
+  <Card title="Lightning Fast" icon="bolt">
+    DuckDB queries in ~100ms with intelligent caching
   </Card>
-  <Card title="Type-Safe API" icon="code">
-    Complete Pydantic validation ensures data integrity
+  <Card title="Time Travel" icon="clock-rotate-left">
+    Query data as it existed at any point in time
   </Card>
   <Card title="Multi-Tenant" icon="users">
     Built-in tenant isolation for SaaS applications
   </Card>
-  <Card title="Version History" icon="clock-rotate-left">
-    Track every change with automatic versioning
+  <Card title="Complete Audit Trail" icon="list-check">
+    Track every change with automatic versioning and audit fields
   </Card>
-  <Card title="Serverless" icon="cloud">
-    Deploy on AWS Lambda or run locally with Docker
+  <Card title="API Key Auth" icon="key">
+    Secure API access with built-in authentication
+  </Card>
+  <Card title="Bulk Operations" icon="layer-group">
+    Update thousands of records with a single filtered operation
+  </Card>
+  <Card title="Auto-Optimization" icon="wand-magic-sparkles">
+    Automatic table compaction and snapshot expiration
   </Card>
 </CardGroup>
 
@@ -57,22 +63,33 @@ graph LR
 **Read Path:**
 - Client → Lambda/FastAPI → DuckDB iceberg_scan → S3 (Parquet files)
 
-## Why S3 ACID Database?
+## Why Ibex DB?
 
 <AccordionGroup>
   <Accordion title="Zero Infrastructure">
-    No databases to manage, no clusters to maintain. Just S3 and Lambda.
+    No databases to manage, no clusters to maintain. Just S3, Lambda, and API Gateway.
   </Accordion>
   <Accordion title="Cost-Effective">
-    Pay only for storage and compute you use. No idle costs.
+    Pay only for storage and compute you use. No idle costs. ~$0.01 per 1000 requests.
   </Accordion>
-  <Accordion title="Enterprise-Grade">
-    ACID transactions, audit trails, and version history built-in.
+  <Accordion title="Production-Ready">
+    ACID transactions, audit trails, version history, and API authentication built-in.
   </Accordion>
-  <Accordion title="Scale to Zero">
-    Perfect for serverless architectures with automatic scaling.
+  <Accordion title="Enterprise Performance">
+    ~100ms query times with 5-minute metadata caching and DuckDB optimization.
   </Accordion>
 </AccordionGroup>
+
+## Performance Metrics
+
+<Note>
+**Production Performance (4GB Lambda, 16 threads)**
+- Simple queries: 80-120ms
+- Filtered queries: 90-150ms
+- Aggregations: 100-200ms
+- Writes: 1200-2000ms
+- Cold start: ~4000ms
+</Note>
 
 ## Quick Example
 
@@ -81,13 +98,32 @@ graph LR
   "operation": "QUERY",
   "tenant_id": "acme-corp",
   "table": "sales",
-  "projection": ["region", "product"],
+  "filter": {
+    "region": {"in": ["US", "EU"]},
+    "revenue": {"gte": 1000}
+  },
   "aggregations": [
-    {"op": "sum", "field": "revenue", "alias": "total_revenue"},
-    {"op": "count", "field": null, "alias": "order_count"}
+    {"field": "revenue", "function": "sum", "alias": "total_revenue"},
+    {"field": "*", "function": "count", "alias": "order_count"}
   ],
-  "group_by": ["region", "product"],
-  "having": {"total_revenue": {"gt": 10000}}
+  "group_by": ["region"],
+  "sort": [{"field": "total_revenue", "order": "DESC"}]
+}
+```
+
+**Response includes detailed metadata:**
+```json
+{
+  "success": true,
+  "data": [...],
+  "metadata": {
+    "row_count": 100,
+    "execution_time_ms": 104.26,
+    "scanned_bytes": 9747,
+    "scanned_rows": 100,
+    "cache_hit": true,
+    "query_id": "uuid"
+  }
 }
 ```
 
