@@ -16,6 +16,7 @@ RUN uv pip install --system --no-cache -e .
 RUN python3 -c "import duckdb; import platform; \
     print(f'Platform: {platform.machine()}'); \
     conn = duckdb.connect(':memory:'); \
+    conn.execute('INSTALL avro'); \
     conn.execute('INSTALL iceberg'); \
     conn.execute('INSTALL httpfs'); \
     print('✓ DuckDB extensions installed')"
@@ -23,8 +24,10 @@ RUN python3 -c "import duckdb; import platform; \
 # Ensure extensions persist and create test database
 RUN python3 -c "import duckdb; \
     conn = duckdb.connect('/tmp/test.db'); \
+    conn.execute('FORCE INSTALL avro'); \
     conn.execute('FORCE INSTALL iceberg'); \
     conn.execute('FORCE INSTALL httpfs'); \
+    conn.execute('LOAD avro'); \
     conn.execute('LOAD iceberg'); \
     conn.execute('LOAD httpfs'); \
     print('✓ Extensions verified and loaded')"

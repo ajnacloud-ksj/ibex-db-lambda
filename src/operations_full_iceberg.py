@@ -46,105 +46,185 @@ class FullIcebergOperations:
     """Full Iceberg operations using PyIceberg for writes and DuckDB for reads"""
 
     def __init__(self):
-        """Initialize PyIceberg catalog and DuckDB connection"""
-        self.config = get_config()
-        self.catalog = self._init_pyiceberg_catalog()
-        self.conn = self._init_duckdb()
+        """
+        Initialize PyIceberg catalog and DuckDB connection
+        
+        Raises:
+            RuntimeError: If initialization fails
+        """
+        try:
+            print("Loading configuration...")
+            self.config = get_config()
+            print("✓ Configuration loaded")
+            
+            print("Initializing PyIceberg catalog...")
+            self.catalog = self._init_pyiceberg_catalog()
+            
+            print("Initializing DuckDB...")
+            self.conn = self._init_duckdb()
+            
+        except Exception as e:
+            error_msg = f"FullIcebergOperations initialization failed: {e}"
+            print(f"✗ {error_msg}")
+            raise RuntimeError(error_msg) from e
 
     def _init_pyiceberg_catalog(self) -> Catalog:
-        """Initialize PyIceberg catalog (REST or Glue based on config)"""
-        catalog_config = self.config.catalog
-        s3_config = self.config.s3
+        """
+        Initialize PyIceberg catalog (REST or Glue based on config)
+        
+        Returns:
+            Configured Catalog instance
+            
+        Raises:
+            ValueError: If catalog type is unsupported
+            RuntimeError: If catalog initialization fails
+        """
+        try:
+            catalog_config = self.config.catalog
+            s3_config = self.config.s3
 
-        catalog_type = catalog_config['type']
-        catalog_name = catalog_config['name']
+            catalog_type = catalog_config['type']
+            catalog_name = catalog_config['name']
 
-        # Build warehouse path
-        warehouse = f"s3://{s3_config['bucket_name']}/{s3_config['warehouse_path']}/"
+            # Build warehouse path
+            warehouse = f"s3://{s3_config['bucket_name']}/{s3_config['warehouse_path']}/"
+            print(f"Warehouse location: {warehouse}")
 
-        if catalog_type == 'rest':
-            # Development: REST Catalog
-            catalog_params = {
-                "uri": catalog_config['uri'],
-                "s3.region": s3_config['region'],
-                "warehouse": warehouse,
-                "py-io-impl": "pyiceberg.io.pyarrow.PyArrowFileIO",
-            }
+            if catalog_type == 'rest':
+                # Development: REST Catalog
+                catalog_params = {
+                    "uri": catalog_config['uri'],
+                    "s3.region": s3_config['region'],
+                    "warehouse": warehouse,
+                    "py-io-impl": "pyiceberg.io.pyarrow.PyArrowFileIO",
+                }
 
-            # Add S3 endpoint if present (for MinIO)
-            if 'endpoint' in s3_config:
-                catalog_params["s3.endpoint"] = s3_config['endpoint']
+                # Add S3 endpoint if present (for MinIO)
+                if 'endpoint' in s3_config:
+                    catalog_params["s3.endpoint"] = s3_config['endpoint']
 
-            # Add credentials if present
-            if 'access_key_id' in s3_config:
-                catalog_params["s3.access-key-id"] = s3_config['access_key_id']
-                catalog_params["s3.secret-access-key"] = s3_config['secret_access_key']
+                # Add credentials if present
+                if 'access_key_id' in s3_config:
+                    catalog_params["s3.access-key-id"] = s3_config['access_key_id']
+                    catalog_params["s3.secret-access-key"] = s3_config['secret_access_key']
 
-            catalog = RestCatalog(name=catalog_name, **catalog_params)
-            print(f"✓ PyIceberg REST catalog initialized at {catalog_config['uri']}")
+                try:
+                    catalog = RestCatalog(name=catalog_name, **catalog_params)
+                    print(f"✓ PyIceberg REST catalog initialized at {catalog_config['uri']}")
+                except Exception as e:
+                    raise RuntimeError(f"Failed to initialize REST catalog: {e}") from e
 
-        elif catalog_type == 'glue':
-            # Production: AWS Glue Catalog (import only when needed)
-            from pyiceberg.catalog.glue import GlueCatalog
+            elif catalog_type == 'glue':
+                # Production: AWS Glue Catalog (import only when needed)
+                try:
+                    from pyiceberg.catalog.glue import GlueCatalog
 
-            catalog_params = {
-                "region_name": catalog_config['region'],
-                "s3.region": s3_config['region'],
-                "warehouse": warehouse,
-                "py-io-impl": "pyiceberg.io.pyarrow.PyArrowFileIO",
-            }
+                    catalog_params = {
+                        "region_name": catalog_config['region'],
+                        "s3.region": s3_config['region'],
+                        "warehouse": warehouse,
+                        "py-io-impl": "pyiceberg.io.pyarrow.PyArrowFileIO",
+                    }
 
-            catalog = GlueCatalog(name=catalog_name, **catalog_params)
-            print(f"✓ PyIceberg Glue catalog initialized in {catalog_config['region']}")
+                    catalog = GlueCatalog(name=catalog_name, **catalog_params)
+                    print(f"✓ PyIceberg Glue catalog initialized in {catalog_config['region']}")
+                except Exception as e:
+                    raise RuntimeError(f"Failed to initialize Glue catalog: {e}") from e
 
-        else:
-            raise ValueError(f"Unsupported catalog type: {catalog_type}")
+            else:
+                raise ValueError(f"Unsupported catalog type: {catalog_type}")
 
-        return catalog
+            return catalog
+            
+        except ValueError:
+            # Re-raise ValueError as-is
+            raise
+        except RuntimeError:
+            # Re-raise RuntimeError as-is
+            raise
+        except Exception as e:
+            error_msg = f"PyIceberg catalog initialization failed: {e}"
+            print(f"✗ {error_msg}")
+            raise RuntimeError(error_msg) from e
 
     def _init_duckdb(self) -> duckdb.DuckDBPyConnection:
-        """Initialize DuckDB with Iceberg extension"""
-        s3_config = self.config.s3
-        duckdb_config = self.config.duckdb
+        """
+        Initialize DuckDB with Iceberg extension
+        
+        Returns:
+            DuckDB connection
+            
+        Raises:
+            RuntimeError: If DuckDB initialization fails
+        """
+        try:
+            s3_config = self.config.s3
+            duckdb_config = self.config.duckdb
 
-        conn = duckdb.connect(':memory:')
+            print("Connecting to DuckDB...")
+            conn = duckdb.connect(':memory:')
 
-        # Set home directory for extensions (fixes Lambda/Docker issue)
-        conn.execute("SET home_directory='/tmp';")
+            # Set home directory for extensions (fixes Lambda/Docker issue)
+            print("Setting DuckDB home directory to /tmp...")
+            conn.execute("SET home_directory='/tmp';")
 
-        # Load extensions
-        conn.execute("INSTALL iceberg;")
-        conn.execute("INSTALL httpfs;")
-        conn.execute("LOAD iceberg;")
-        conn.execute("LOAD httpfs;")
+            # Load extensions (already pre-installed in Docker container)
+            # Extensions are installed at container build time for faster cold starts
+            print("Loading DuckDB extensions...")
+            try:
+                conn.execute("LOAD avro;")
+                print("  ✓ avro extension loaded")
+            except Exception as e:
+                raise RuntimeError(f"Failed to load avro extension: {e}") from e
+                
+            try:
+                conn.execute("LOAD iceberg;")
+                print("  ✓ iceberg extension loaded")
+            except Exception as e:
+                raise RuntimeError(f"Failed to load iceberg extension: {e}") from e
+                
+            try:
+                conn.execute("LOAD httpfs;")
+                print("  ✓ httpfs extension loaded")
+            except Exception as e:
+                raise RuntimeError(f"Failed to load httpfs extension: {e}") from e
 
-        # Configure DuckDB settings
-        conn.execute(f"SET memory_limit='{duckdb_config['memory_limit']}';")
-        conn.execute(f"SET threads={duckdb_config['threads']};")
+            # Configure DuckDB settings
+            print("Configuring DuckDB settings...")
+            conn.execute(f"SET memory_limit='{duckdb_config['memory_limit']}';")
+            conn.execute(f"SET threads={duckdb_config['threads']};")
 
-        # Configure S3
-        s3_commands = [
-            f"SET s3_region='{s3_config['region']}';"
-        ]
+            # Configure S3
+            print("Configuring S3 settings...")
+            s3_commands = [
+                f"SET s3_region='{s3_config['region']}';"
+            ]
 
-        # Add endpoint if present (for MinIO)
-        if 'endpoint' in s3_config:
-            endpoint = s3_config['endpoint'].replace('http://', '').replace('https://', '')
-            s3_commands.append(f"SET s3_endpoint='{endpoint}';")
-            s3_commands.append(f"SET s3_use_ssl={str(s3_config.get('use_ssl', False)).lower()};")
-            s3_commands.append(f"SET s3_url_style='{'path' if s3_config.get('path_style_access', True) else 'vhost'}';")
+            # Add endpoint if present (for MinIO)
+            if 'endpoint' in s3_config:
+                endpoint = s3_config['endpoint'].replace('http://', '').replace('https://', '')
+                s3_commands.append(f"SET s3_endpoint='{endpoint}';")
+                s3_commands.append(f"SET s3_use_ssl={str(s3_config.get('use_ssl', False)).lower()};")
+                s3_commands.append(f"SET s3_url_style='{'path' if s3_config.get('path_style_access', True) else 'vhost'}';")
 
-        # Add credentials if present (for MinIO, not needed in production with IAM)
-        if 'access_key_id' in s3_config:
-            s3_commands.append(f"SET s3_access_key_id='{s3_config['access_key_id']}';")
-            s3_commands.append(f"SET s3_secret_access_key='{s3_config['secret_access_key']}';")
+            # Add credentials if present (for MinIO, not needed in production with IAM)
+            if 'access_key_id' in s3_config:
+                s3_commands.append(f"SET s3_access_key_id='{s3_config['access_key_id']}';")
+                s3_commands.append(f"SET s3_secret_access_key='{s3_config['secret_access_key']}';")
 
-        # Execute all S3 configuration commands
-        for cmd in s3_commands:
-            conn.execute(cmd)
+            # Execute all S3 configuration commands
+            for cmd in s3_commands:
+                conn.execute(cmd)
 
-        print(f"✓ DuckDB initialized with Iceberg extension (threads={duckdb_config['threads']}, memory={duckdb_config['memory_limit']})")
-        return conn
+            print(f"✓ DuckDB initialized with Iceberg extension (threads={duckdb_config['threads']}, memory={duckdb_config['memory_limit']})")
+            return conn
+            
+        except Exception as e:
+            error_msg = f"DuckDB initialization failed: {e}"
+            print(f"✗ {error_msg}")
+            import traceback
+            traceback.print_exc()
+            raise RuntimeError(error_msg) from e
 
     def _get_namespace(self, tenant_id: str, namespace: str) -> str:
         """Get Iceberg namespace from tenant and namespace"""
@@ -989,12 +1069,41 @@ class FullIcebergOperations:
 
 # Global instance
 _iceberg_ops = None
+_iceberg_ops_init_failed = False
+_iceberg_ops_init_error = None
 
 def get_iceberg_ops() -> FullIcebergOperations:
-    """Get or create Iceberg operations instance"""
-    global _iceberg_ops
+    """
+    Get or create Iceberg operations instance
+    
+    Raises:
+        RuntimeError: If initialization previously failed
+    """
+    global _iceberg_ops, _iceberg_ops_init_failed, _iceberg_ops_init_error
+    
+    # If initialization failed before, don't retry (requires container restart)
+    if _iceberg_ops_init_failed:
+        error_msg = (
+            f"Iceberg operations initialization previously failed. "
+            f"Container restart required. Original error: {_iceberg_ops_init_error}"
+        )
+        print(f"✗ {error_msg}")
+        raise RuntimeError(error_msg)
+    
+    # Create instance if not exists
     if _iceberg_ops is None:
-        _iceberg_ops = FullIcebergOperations()
+        try:
+            print("Initializing Iceberg operations...")
+            _iceberg_ops = FullIcebergOperations()
+            print("✓ Iceberg operations initialized successfully")
+        except Exception as e:
+            _iceberg_ops_init_failed = True
+            _iceberg_ops_init_error = str(e)
+            print(f"✗ Iceberg operations initialization failed: {e}")
+            import traceback
+            traceback.print_exc()
+            raise RuntimeError(f"Failed to initialize Iceberg operations: {e}") from e
+    
     return _iceberg_ops
 
 
