@@ -61,8 +61,8 @@
       "region": "${AWS_REGION}"
     },
     "duckdb": {
-      "memory_limit": "4GB",
-      "threads": 8
+      "memory_limit": "2GB",
+      "threads": 4
     },
     "lambda": {
       "timeout": 900,

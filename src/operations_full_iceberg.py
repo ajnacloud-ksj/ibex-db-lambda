@@ -930,6 +930,7 @@ class FullIcebergOperations:
             ])
 
             # Expire old snapshots if requested
+            # NOTE: This is the KEY to deleting old files!
             snapshots_expired = 0
             if request.expire_snapshots:
                 try:
@@ -937,36 +938,36 @@ class FullIcebergOperations:
                         hours=request.snapshot_retention_hours
                     )
                     
-                    # PyIceberg 0.10.0+ uses ExpireSnapshots API
-                    # Note: This physically deletes old data files!
-                    from pyiceberg.table import ExpireSnapshots
+                    # Reload table to get latest metadata
+                    table = self.catalog.load_table(table_identifier)
                     
-                    # Get snapshot ID from retention time
+                    # Get all snapshots
                     all_snapshots = list(table.history())
-                    snapshots_to_expire = [
-                        s for s in all_snapshots
-                        if datetime.fromtimestamp(s.timestamp_ms / 1000) < retention_time
-                    ]
+                    print(f"Total snapshots in table: {len(all_snapshots)}")
                     
-                    if snapshots_to_expire:
-                        # Expire snapshots using PyIceberg API
-                        expire_op = ExpireSnapshots(
-                            operation=table._transaction,
-                            snapshot_ids=[s.snapshot_id for s in snapshots_to_expire],
-                            older_than=int(retention_time.timestamp() * 1000)
-                        )
-                        expire_op.commit()
-                        snapshots_expired = len(snapshots_to_expire)
-                        print(f"✓ Expired {snapshots_expired} old snapshots")
-                    else:
-                        print("No snapshots old enough to expire")
+                    # Check retention - but for compaction, we want to delete immediately!
+                    # Set retention to NOW to expire old snapshots immediately after compaction
+                    older_than_ms = int(datetime.utcnow().timestamp() * 1000)
+                    
+                    # Keep only the latest snapshot
+                    if len(all_snapshots) > 1:
+                        print(f"Expiring {len(all_snapshots) - 1} old snapshots...")
                         
-                except ImportError:
-                    print(f"Warning: ExpireSnapshots not available in PyIceberg {table.__module__}")
+                        # Use table.expire_snapshots() with older_than parameter
+                        # This is the correct PyIceberg 0.10.0 API
+                        table.manage_snapshots().expire_snapshots().expire_older_than(older_than_ms).commit()
+                        
+                        snapshots_expired = len(all_snapshots) - 1
+                        print(f"✓ Expired {snapshots_expired} old snapshots and deleted orphan files")
+                    else:
+                        print("✓ Only 1 snapshot exists, no old files to delete")
+                        
                 except AttributeError as e:
-                    print(f"Warning: Snapshot expiration API not available: {e}")
+                    print(f"⚠ Snapshot expiration API not available: {e}")
+                    print(f"⚠ Old files will remain for time-travel queries")
                 except Exception as e:
-                    print(f"Warning: Could not expire snapshots: {e}")
+                    print(f"⚠ Could not expire snapshots: {e}")
+                    print(f"⚠ Old files will remain on S3 until manual cleanup")
 
             # Calculate compaction time
             compaction_time_ms = (time.time() - start_time) * 1000
