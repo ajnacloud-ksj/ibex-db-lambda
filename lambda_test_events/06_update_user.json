@@ -1,0 +1,9 @@
+{
+  "httpMethod": "POST",
+  "path": "/database",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": "{\"operation\": \"UPDATE\", \"tenant_id\": \"test-tenant\", \"namespace\": \"default\", \"table\": \"users\", \"updates\": {\"age\": 31}, \"filter\": {\"name\": {\"eq\": \"Alice\"}}}"
+}
+

@@ -936,14 +936,35 @@ class FullIcebergOperations:
                     retention_time = datetime.utcnow() - timedelta(
                         hours=request.snapshot_retention_hours
                     )
-                    table.expire_snapshots(older_than=retention_time)
-
-                    # Count expired snapshots (rough estimate)
+                    
+                    # PyIceberg 0.10.0+ uses ExpireSnapshots API
+                    # Note: This physically deletes old data files!
+                    from pyiceberg.table import ExpireSnapshots
+                    
+                    # Get snapshot ID from retention time
                     all_snapshots = list(table.history())
-                    snapshots_expired = len([
+                    snapshots_to_expire = [
                         s for s in all_snapshots
                         if datetime.fromtimestamp(s.timestamp_ms / 1000) < retention_time
-                    ])
+                    ]
+                    
+                    if snapshots_to_expire:
+                        # Expire snapshots using PyIceberg API
+                        expire_op = ExpireSnapshots(
+                            operation=table._transaction,
+                            snapshot_ids=[s.snapshot_id for s in snapshots_to_expire],
+                            older_than=int(retention_time.timestamp() * 1000)
+                        )
+                        expire_op.commit()
+                        snapshots_expired = len(snapshots_to_expire)
+                        print(f"✓ Expired {snapshots_expired} old snapshots")
+                    else:
+                        print("No snapshots old enough to expire")
+                        
+                except ImportError:
+                    print(f"Warning: ExpireSnapshots not available in PyIceberg {table.__module__}")
+                except AttributeError as e:
+                    print(f"Warning: Snapshot expiration API not available: {e}")
                 except Exception as e:
                     print(f"Warning: Could not expire snapshots: {e}")
 

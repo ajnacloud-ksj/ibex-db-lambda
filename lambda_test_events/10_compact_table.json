@@ -1,0 +1,9 @@
+{
+  "httpMethod": "POST",
+  "path": "/database",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": "{\"operation\": \"COMPACT\", \"tenant_id\": \"test-tenant\", \"namespace\": \"default\", \"table\": \"users\", \"force\": true, \"expire_snapshots\": true, \"snapshot_retention_hours\": 168}"
+}
+
