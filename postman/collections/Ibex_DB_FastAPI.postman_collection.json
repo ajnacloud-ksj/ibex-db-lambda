@@ -1,0 +1,194 @@
+{
+  "info": {
+    "name": "Ibex DB - FastAPI (Local)",
+    "description": "Complete test suite for FastAPI local development\n\nEnvironment: FastAPI - Local Development\nBase URL: http://localhost:9000\n\nBefore running:\n1. cd docker && docker-compose up -d fastapi\n2. Select 'FastAPI - Local Development' environment\n3. Run requests in order",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["health"]
+        },
+        "description": "Verify FastAPI server is running"
+      }
+    },
+    {
+      "name": "CREATE TABLE - users",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"CREATE_TABLE\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"schema\": {\n    \"fields\": {\n      \"id\": {\"type\": \"long\", \"required\": true},\n      \"name\": {\"type\": \"string\", \"required\": true},\n      \"email\": {\"type\": \"string\", \"required\": false},\n      \"age\": {\"type\": \"integer\", \"required\": false}\n    }\n  }\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/database",
+          "host": ["{{baseUrl}}"],
+          "path": ["database"]
+        },
+        "description": "Create a new users table"
+      }
+    },
+    {
+      "name": "WRITE - Insert users",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"WRITE\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"records\": [\n    {\"id\": 1, \"name\": \"Alice\", \"email\": \"alice@example.com\", \"age\": 30},\n    {\"id\": 2, \"name\": \"Bob\", \"email\": \"bob@example.com\", \"age\": 25},\n    {\"id\": 3, \"name\": \"Charlie\", \"email\": \"charlie@example.com\", \"age\": 35}\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/database",
+          "host": ["{{baseUrl}}"],
+          "path": ["database"]
+        },
+        "description": "Insert 3 users"
+      }
+    },
+    {
+      "name": "QUERY - All users",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"limit\": 100\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/database",
+          "host": ["{{baseUrl}}"],
+          "path": ["database"]
+        },
+        "description": "Query all users"
+      }
+    },
+    {
+      "name": "QUERY - With filter",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"projection\": [\"name\", \"age\"],\n  \"filter\": {\n    \"age\": {\"gte\": 25, \"lte\": 35}\n  },\n  \"limit\": 100\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/database",
+          "host": ["{{baseUrl}}"],
+          "path": ["database"]
+        },
+        "description": "Query users with age filter"
+      }
+    },
+    {
+      "name": "UPDATE - Update user",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"UPDATE\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"updates\": {\"age\": 31},\n  \"filter\": {\"name\": {\"eq\": \"Alice\"}}\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/database",
+          "host": ["{{baseUrl}}"],
+          "path": ["database"]
+        },
+        "description": "Update Alice's age"
+      }
+    },
+    {
+      "name": "DELETE - Soft delete",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"DELETE\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"filter\": {\"name\": {\"eq\": \"Charlie\"}},\n  \"hard_delete\": false\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/database",
+          "host": ["{{baseUrl}}"],
+          "path": ["database"]
+        },
+        "description": "Soft delete Charlie"
+      }
+    },
+    {
+      "name": "LIST_TABLES",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"LIST_TABLES\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/database",
+          "host": ["{{baseUrl}}"],
+          "path": ["database"]
+        },
+        "description": "List all tables"
+      }
+    },
+    {
+      "name": "DESCRIBE_TABLE",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"DESCRIBE_TABLE\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/database",
+          "host": ["{{baseUrl}}"],
+          "path": ["database"]
+        },
+        "description": "Get table schema and metadata"
+      }
+    },
+    {
+      "name": "COMPACT - Optimize files",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"COMPACT\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"force\": true,\n  \"expire_snapshots\": true,\n  \"snapshot_retention_hours\": 168\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/database",
+          "host": ["{{baseUrl}}"],
+          "path": ["database"]
+        },
+        "description": "Compact table files"
+      }
+    }
+  ]
+}
+

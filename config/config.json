@@ -61,12 +61,12 @@
       "region": "${AWS_REGION}"
     },
     "duckdb": {
-      "memory_limit": "2GB",
-      "threads": 4
+      "memory_limit": "3.5GB",
+      "threads": 16
     },
     "lambda": {
-      "timeout": 900,
-      "memory_size": 10240
+      "timeout": 300,
+      "memory_size": 4096
     },
     "performance": {
       "max_retries": 3,
@@ -81,10 +81,10 @@
       },
       "compaction": {
         "enabled": true,
-        "small_file_threshold_mb": 128,
-        "min_files_to_compact": 20,
+        "small_file_threshold_mb": 64,
+        "min_files_to_compact": 5,
         "opportunistic_check_interval": 100,
-        "max_files_per_compaction": 200
+        "max_files_per_compaction": 100
       }
     }
   },

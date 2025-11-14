@@ -1,0 +1,190 @@
+{
+  "info": {
+    "name": "Ibex DB - AWS API Gateway",
+    "description": "Complete test suite for AWS API Gateway production endpoint\n\nEnvironment: AWS - API Gateway Production\nBase URL: https://dhxby8kzg1.execute-api.ap-south-1.amazonaws.com/default/ibex-db-lambda\n\nBefore running:\n1. Select 'AWS - API Gateway Production' environment\n2. Run requests in order",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "LIST_TABLES",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"LIST_TABLES\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}",
+          "host": ["{{baseUrl}}"]
+        },
+        "description": "List all tables in namespace"
+      }
+    },
+    {
+      "name": "CREATE TABLE - products",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"CREATE_TABLE\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"products\",\n  \"schema\": {\n    \"fields\": {\n      \"product_id\": {\"type\": \"long\", \"required\": true},\n      \"name\": {\"type\": \"string\", \"required\": true},\n      \"category\": {\"type\": \"string\", \"required\": false},\n      \"price\": {\"type\": \"double\", \"required\": true},\n      \"stock\": {\"type\": \"integer\", \"required\": false}\n    }\n  }\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}",
+          "host": ["{{baseUrl}}"]
+        },
+        "description": "Create a new products table"
+      }
+    },
+    {
+      "name": "WRITE - Insert products",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"WRITE\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"products\",\n  \"records\": [\n    {\"product_id\": 1, \"name\": \"Laptop\", \"category\": \"Electronics\", \"price\": 999.99, \"stock\": 50},\n    {\"product_id\": 2, \"name\": \"Mouse\", \"category\": \"Electronics\", \"price\": 29.99, \"stock\": 200},\n    {\"product_id\": 3, \"name\": \"Desk\", \"category\": \"Furniture\", \"price\": 299.99, \"stock\": 25}\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}",
+          "host": ["{{baseUrl}}"]
+        },
+        "description": "Insert 3 products"
+      }
+    },
+    {
+      "name": "QUERY - All products",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"products\",\n  \"limit\": 100\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}",
+          "host": ["{{baseUrl}}"]
+        },
+        "description": "Query all products"
+      }
+    },
+    {
+      "name": "QUERY - With filter",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"products\",\n  \"projection\": [\"name\", \"price\"],\n  \"filter\": {\n    \"price\": {\"lte\": 500}\n  },\n  \"limit\": 100\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}",
+          "host": ["{{baseUrl}}"]
+        },
+        "description": "Query products with price filter"
+      }
+    },
+    {
+      "name": "UPDATE - Update price",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"UPDATE\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"products\",\n  \"updates\": {\"price\": 899.99},\n  \"filter\": {\"product_id\": {\"eq\": 1}}\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}",
+          "host": ["{{baseUrl}}"]
+        },
+        "description": "Update laptop price"
+      }
+    },
+    {
+      "name": "DELETE - Soft delete",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"DELETE\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"products\",\n  \"filter\": {\"product_id\": {\"eq\": 3}},\n  \"hard_delete\": false\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}",
+          "host": ["{{baseUrl}}"]
+        },
+        "description": "Soft delete desk"
+      }
+    },
+    {
+      "name": "DESCRIBE_TABLE",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"DESCRIBE_TABLE\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"products\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}",
+          "host": ["{{baseUrl}}"]
+        },
+        "description": "Get table schema and metadata"
+      }
+    },
+    {
+      "name": "COMPACT - Optimize files",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"COMPACT\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"products\",\n  \"force\": true,\n  \"expire_snapshots\": false,\n  \"snapshot_retention_hours\": 168\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}",
+          "host": ["{{baseUrl}}"]
+        },
+        "description": "Compact table files"
+      }
+    },
+    {
+      "name": "Query existing - users table",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"limit\": 10\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}",
+          "host": ["{{baseUrl}}"]
+        },
+        "description": "Query existing users table"
+      }
+    }
+  ]
+}
+

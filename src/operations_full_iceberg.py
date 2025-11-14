@@ -63,6 +63,11 @@ class FullIcebergOperations:
             print("Initializing DuckDB...")
             self.conn = self._init_duckdb()
             
+            # Initialize metadata cache for query performance
+            self._metadata_cache = {}
+            self._cache_ttl = 300  # 5 minutes cache
+            print("✓ Query cache initialized (TTL: 300s)")
+            
         except Exception as e:
             error_msg = f"FullIcebergOperations initialization failed: {e}"
             print(f"✗ {error_msg}")
@@ -194,6 +199,13 @@ class FullIcebergOperations:
             print("Configuring DuckDB settings...")
             conn.execute(f"SET memory_limit='{duckdb_config['memory_limit']}';")
             conn.execute(f"SET threads={duckdb_config['threads']};")
+            
+            # Performance optimizations
+            conn.execute("SET enable_object_cache=true;")
+            conn.execute("SET enable_http_metadata_cache=true;")
+            conn.execute("SET force_compression='zstd';")
+            conn.execute("SET preserve_insertion_order=false;")
+            print("  ✓ Performance optimizations enabled")
 
             # Configure S3
             print("Configuring S3 settings...")
@@ -226,6 +238,38 @@ class FullIcebergOperations:
             import traceback
             traceback.print_exc()
             raise RuntimeError(error_msg) from e
+
+    def _get_metadata_path(self, table_identifier: str) -> str:
+        """
+        Get metadata path with caching to avoid repeated Glue calls
+        
+        Args:
+            table_identifier: Full table identifier
+            
+        Returns:
+            Metadata location path
+            
+        Raises:
+            Exception: If table doesn't exist or can't be loaded
+        """
+        cache_key = table_identifier
+        now = time.time()
+        
+        # Check cache
+        if cache_key in self._metadata_cache:
+            cached_path, cached_time = self._metadata_cache[cache_key]
+            if now - cached_time < self._cache_ttl:
+                # Cache hit
+                return cached_path
+        
+        # Cache miss - load from catalog (slow Glue call)
+        table = self.catalog.load_table(table_identifier)
+        metadata_path = table.metadata_location
+        
+        # Update cache
+        self._metadata_cache[cache_key] = (metadata_path, now)
+        
+        return metadata_path
 
     def _get_namespace(self, tenant_id: str, namespace: str) -> str:
         """Get Iceberg namespace from tenant and namespace"""
@@ -508,18 +552,15 @@ class FullIcebergOperations:
             )
 
     def query(self, request: QueryRequest) -> QueryResponse:
-        """Query Iceberg table using DuckDB's iceberg_scan"""
+        """Query Iceberg table using DuckDB's iceberg_scan with metadata caching"""
         try:
             table_identifier = self._get_table_identifier(
                 request.tenant_id, request.namespace, request.table
             )
 
-            # Get table metadata location from catalog
+            # Get table metadata location from cache (fast) or catalog (slow)
             try:
-                table = self.catalog.load_table(table_identifier)
-                # Use the metadata file location for DuckDB iceberg_scan
-                # DuckDB can read from the metadata JSON file directly
-                metadata_path = table.metadata_location
+                metadata_path = self._get_metadata_path(table_identifier)
             except Exception as e:
                 # Table doesn't exist
                 return QueryResponse(
