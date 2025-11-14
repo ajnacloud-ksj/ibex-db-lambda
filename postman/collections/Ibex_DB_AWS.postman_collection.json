@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Ibex DB - AWS API Gateway",
-    "description": "Complete test suite for AWS API Gateway production endpoint\n\nEnvironment: AWS - API Gateway Production\nBase URL: https://dhxby8kzg1.execute-api.ap-south-1.amazonaws.com/default/ibex-db-lambda\n\nBefore running:\n1. Select 'AWS - API Gateway Production' environment\n2. Run requests in order",
+    "description": "Complete test suite for AWS API Gateway production endpoint including auditing, time travel, and bulk operations\n\nEnvironment Options:\n- Production - Custom Domain (RECOMMENDED): https://smartlink.ajna.cloud/ibexdb\n- AWS - API Gateway Direct: https://gcmdpajl1d.execute-api.ap-south-1.amazonaws.com/dev\n\nAPI Key: McuMsuWDXo1g9zqLBBzVy3uXsIKDklGT8GbIhpyl\n\nBefore running:\n1. Select 'Production - Custom Domain' or 'AWS - API Gateway Direct' environment\n2. Ensure {{api_key}} variable is set\n3. Run requests in order",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -10,7 +10,8 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"}
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
         ],
         "body": {
           "mode": "raw",
@@ -28,7 +29,8 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"}
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
         ],
         "body": {
           "mode": "raw",
@@ -46,7 +48,8 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"}
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
         ],
         "body": {
           "mode": "raw",
@@ -64,7 +67,8 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"}
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
         ],
         "body": {
           "mode": "raw",
@@ -82,7 +86,8 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"}
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
         ],
         "body": {
           "mode": "raw",
@@ -96,11 +101,69 @@
       }
     },
     {
-      "name": "UPDATE - Update price",
+      "name": "QUERY - Count all products",
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"}
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"products\",\n  \"aggregations\": [\n    {\"op\": \"count\", \"field\": null, \"alias\": \"total_count\"}\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}",
+          "host": ["{{baseUrl}}"]
+        },
+        "description": "Count total products"
+      }
+    },
+    {
+      "name": "QUERY - Count with filter",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"products\",\n  \"filter\": {\n    \"price\": {\"lte\": 500}\n  },\n  \"aggregations\": [\n    {\"op\": \"count\", \"field\": null, \"alias\": \"affordable_count\"}\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}",
+          "host": ["{{baseUrl}}"]
+        },
+        "description": "Count affordable products (price <= 500)"
+      }
+    },
+    {
+      "name": "QUERY - Count by category",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"products\",\n  \"aggregations\": [\n    {\"op\": \"count\", \"field\": null, \"alias\": \"product_count\"}\n  ],\n  \"group_by\": [\"category\"],\n  \"sort\": [{\"field\": \"product_count\", \"order\": \"desc\"}]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}",
+          "host": ["{{baseUrl}}"]
+        },
+        "description": "Count products grouped by category"
+      }
+    },
+    {
+      "name": "UPDATE - Single record",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
         ],
         "body": {
           "mode": "raw",
@@ -110,7 +173,140 @@
           "raw": "{{baseUrl}}",
           "host": ["{{baseUrl}}"]
         },
-        "description": "Update laptop price"
+        "description": "Update laptop price (single record)"
+      }
+    },
+    {
+      "name": "UPDATE - Bulk update (multiple records)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"UPDATE\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"products\",\n  \"updates\": {\"stock\": 1000},\n  \"filter\": {\n    \"category\": {\"eq\": \"Electronics\"}\n  }\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}",
+          "host": ["{{baseUrl}}"]
+        },
+        "description": "Bulk update: Set stock to 1000 for all Electronics"
+      }
+    },
+    {
+      "name": "AUDIT - View all versions of Laptop",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"products\",\n  \"filter\": {\"product_id\": {\"eq\": 1}},\n  \"projection\": [\"_version\", \"_timestamp\", \"name\", \"price\", \"stock\"],\n  \"sort\": [{\"field\": \"_version\", \"order\": \"asc\"}]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}",
+          "host": ["{{baseUrl}}"]
+        },
+        "description": "View complete version history for Laptop product"
+      }
+    },
+    {
+      "name": "AUDIT - Get latest version only",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"products\",\n  \"filter\": {\"product_id\": {\"eq\": 1}},\n  \"sort\": [{\"field\": \"_version\", \"order\": \"desc\"}],\n  \"limit\": 1\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}",
+          "host": ["{{baseUrl}}"]
+        },
+        "description": "Get only the current state of Laptop"
+      }
+    },
+    {
+      "name": "AUDIT - Track price changes",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"products\",\n  \"filter\": {\"product_id\": {\"eq\": 1}},\n  \"projection\": [\"_timestamp\", \"price\", \"_version\"],\n  \"sort\": [{\"field\": \"_timestamp\", \"order\": \"asc\"}]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}",
+          "host": ["{{baseUrl}}"]
+        },
+        "description": "Track how Laptop price changed over time"
+      }
+    },
+    {
+      "name": "AUDIT - Count versions per product",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"products\",\n  \"aggregations\": [\n    {\"op\": \"count\", \"field\": null, \"alias\": \"version_count\"}\n  ],\n  \"group_by\": [\"name\"],\n  \"sort\": [{\"field\": \"version_count\", \"order\": \"desc\"}],\n  \"limit\": 10\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}",
+          "host": ["{{baseUrl}}"]
+        },
+        "description": "Count how many times each product was updated"
+      }
+    },
+    {
+      "name": "AUDIT - Find changes today",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"products\",\n  \"filter\": {\n    \"_timestamp\": {\n      \"gte\": \"2025-11-14T00:00:00\",\n      \"lte\": \"2025-11-14T23:59:59\"\n    }\n  },\n  \"projection\": [\"_timestamp\", \"_version\", \"name\", \"price\"],\n  \"sort\": [{\"field\": \"_timestamp\", \"order\": \"desc\"}],\n  \"limit\": 50\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}",
+          "host": ["{{baseUrl}}"]
+        },
+        "description": "Find all product changes made today"
+      }
+    },
+    {
+      "name": "TIME TRAVEL - Query at specific timestamp",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"products\",\n  \"as_of\": \"2025-11-14T05:32:00.000000\",\n  \"projection\": [\"_version\", \"_timestamp\", \"name\", \"price\"],\n  \"limit\": 100\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}",
+          "host": ["{{baseUrl}}"]
+        },
+        "description": "Query products as they existed at specific time"
       }
     },
     {
@@ -118,7 +314,8 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"}
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
         ],
         "body": {
           "mode": "raw",
@@ -132,11 +329,31 @@
       }
     },
     {
+      "name": "AUDIT - View soft-deleted products",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"products\",\n  \"include_deleted\": true,\n  \"filter\": {\"_deleted\": {\"eq\": true}},\n  \"projection\": [\"name\", \"_deleted_at\", \"_timestamp\", \"price\"]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}",
+          "host": ["{{baseUrl}}"]
+        },
+        "description": "Query soft-deleted products (normally hidden)"
+      }
+    },
+    {
       "name": "DESCRIBE_TABLE",
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"}
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
         ],
         "body": {
           "mode": "raw",
@@ -154,17 +371,18 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"}
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"operation\": \"COMPACT\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"products\",\n  \"force\": true,\n  \"expire_snapshots\": false,\n  \"snapshot_retention_hours\": 168\n}"
+          "raw": "{\n  \"operation\": \"COMPACT\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"products\",\n  \"force\": true,\n  \"expire_snapshots\": true,\n  \"snapshot_retention_hours\": 168\n}"
         },
         "url": {
           "raw": "{{baseUrl}}",
           "host": ["{{baseUrl}}"]
         },
-        "description": "Compact table files"
+        "description": "Compact table files and expire old snapshots"
       }
     },
     {
@@ -172,7 +390,8 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"}
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
         ],
         "body": {
           "mode": "raw",
@@ -184,7 +403,25 @@
         },
         "description": "Query existing users table"
       }
+    },
+    {
+      "name": "AUDIT - Users version history (existing data)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"filter\": {\"name\": {\"eq\": \"Alice\"}},\n  \"projection\": [\"_version\", \"_timestamp\", \"name\", \"email\", \"age\"],\n  \"sort\": [{\"field\": \"_version\", \"order\": \"asc\"}]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}",
+          "host": ["{{baseUrl}}"]
+        },
+        "description": "View Alice's complete version history from existing users table"
+      }
     }
   ]
 }
-

@@ -1,176 +1,368 @@
 # Postman Collections & Environments
 
-Clean, simple Postman setup for testing Ibex DB Lambda.
+Complete Postman setup for testing Ibex DB API across different environments.
 
-## 📦 What's Included
+## 📦 Quick Start
 
-### Collections (2)
-1. **Ibex_DB_FastAPI.postman_collection.json** - For local FastAPI development
-2. **Ibex_DB_AWS.postman_collection.json** - For AWS API Gateway production
+### 1. Import Files
 
-### Environments (2)
-1. **FastAPI_Local.postman_environment.json** - Local development (`http://localhost:9000`)
-2. **AWS_API_Gateway.postman_environment.json** - Production (`https://dhxby8kzg1.execute-api.ap-south-1.amazonaws.com/default/ibex-db-lambda`)
+Import these files into Postman:
+
+**Collections:**
+- `collections/Ibex_DB_AWS.postman_collection.json` - AWS API Gateway (Production)
+- `collections/Ibex_DB_FastAPI.postman_collection.json` - FastAPI (Local Development)
+
+**Environments:**
+- `environments/Production_CustomDomain.postman_environment.json` - ⭐ **Production (Clean URL)**
+- `environments/AWS_API_Gateway.postman_environment.json` - Direct API Gateway URL
+- `environments/FastAPI_Local.postman_environment.json` - Local development
+
+### 2. Select Environment
+
+Choose an environment based on your needs:
+
+| Environment | When to Use | API Key Required |
+|------------|-------------|------------------|
+| **Production - Custom Domain** ⭐ | Production testing with clean URL | ✅ Yes |
+| **AWS - API Gateway Direct** | Direct API Gateway access | ✅ Yes |
+| **FastAPI - Local Development** | Local development & debugging | ❌ No |
 
 ---
 
-## 🚀 Quick Start
+## 🌐 Environments
 
-### For Local Development (FastAPI)
+### Production - Custom Domain ⭐ (RECOMMENDED)
 
-**Step 1: Start FastAPI**
+**URL:** `https://smartlink.ajna.cloud/ibexdb`
+
+**Variables:**
+```json
+{
+  "baseUrl": "https://smartlink.ajna.cloud/ibexdb",
+  "api_key": "McuMsuWDXo1g9zqLBBzVy3uXsIKDklGT8GbIhpyl",
+  "tenant_id": "test-tenant",
+  "namespace": "default"
+}
+```
+
+**When to use:**
+- ✅ Production testing
+- ✅ Clean, professional URL
+- ✅ Client demos
+- ✅ External integrations
+
+**Status:** ✅ Live and working
+
+---
+
+### AWS - API Gateway Direct
+
+**URL:** `https://gcmdpajl1d.execute-api.ap-south-1.amazonaws.com/dev`
+
+**Variables:**
+```json
+{
+  "baseUrl": "https://gcmdpajl1d.execute-api.ap-south-1.amazonaws.com/dev",
+  "api_key": "McuMsuWDXo1g9zqLBBzVy3uXsIKDklGT8GbIhpyl",
+  "tenant_id": "test-tenant",
+  "namespace": "default"
+}
+```
+
+**When to use:**
+- Direct AWS endpoint access
+- Troubleshooting
+- Custom domain unavailable
+
+**Status:** ✅ Working
+
+---
+
+### FastAPI - Local Development
+
+**URL:** `http://localhost:9000`
+
+**Variables:**
+```json
+{
+  "baseUrl": "http://localhost:9000",
+  "tenant_id": "test-tenant",
+  "namespace": "default"
+}
+```
+
+**When to use:**
+- Local development
+- Testing changes before deployment
+- Debugging
+- No AWS costs
+
+**Status:** Requires `docker-compose up -d fastapi`
+
+**Setup:**
 ```bash
 cd docker
-docker-compose up -d fastapi
+docker-compose up -d fastapi minio
+# Wait 5 seconds for services to start
 ```
 
-**Step 2: Import to Postman**
-1. Open Postman
-2. Import:
-   - `collections/Ibex_DB_FastAPI.postman_collection.json`
-   - `environments/FastAPI_Local.postman_environment.json`
-3. Select environment: **FastAPI - Local Development**
-4. Run requests in order!
+---
 
-**URL**: `http://localhost:9000/database`
+## 📚 Collections
+
+### Ibex_DB_AWS.postman_collection.json
+
+Complete test suite for AWS API Gateway (production).
+
+**Included Requests:**
+1. **Table Management**
+   - LIST_TABLES
+   - CREATE_TABLE (products, users)
+   - DROP_TABLE
+
+2. **Data Operations**
+   - WRITE (Insert records)
+   - QUERY (Simple & filtered)
+   - UPDATE (Single & bulk)
+   - DELETE (Soft delete)
+
+3. **Advanced Queries**
+   - Filtering (eq, gt, gte, lt, lte, in, like)
+   - Sorting (ASC, DESC)
+   - Pagination (limit, offset)
+   - Projections (select specific fields)
+
+4. **Aggregations**
+   - Count records
+   - Sum, Average, Min, Max
+   - Group By operations
+   - Multiple aggregations
+
+5. **Auditing & Time Travel**
+   - View version history
+   - Query data as of timestamp
+   - Track all changes
+   - View deleted records
+
+6. **Performance**
+   - COMPACT tables
+   - Expire old snapshots
+   - Optimize file sizes
+
+**Required Environment Variables:**
+- `baseUrl` - API endpoint
+- `api_key` - API key for authentication
+- `tenant_id` - Tenant identifier
+- `namespace` - Table namespace
 
 ---
 
-### For AWS Production (API Gateway)
+### Ibex_DB_FastAPI.postman_collection.json
 
-**Step 1: Import to Postman**
-1. Open Postman
-2. Import:
-   - `collections/Ibex_DB_AWS.postman_collection.json`
-   - `environments/AWS_API_Gateway.postman_environment.json`
-3. Select environment: **AWS - API Gateway Production**
-4. Run requests!
+Complete test suite for local FastAPI development.
 
-**URL**: `https://dhxby8kzg1.execute-api.ap-south-1.amazonaws.com/default/ibex-db-lambda`
+**Differences from AWS Collection:**
+- No API key required
+- Includes Health Check endpoint
+- Uses `/database` path
+- Includes Documentation endpoints
 
----
-
-## 📋 Collection Contents
-
-### FastAPI Collection (10 requests)
-1. Health Check
-2. CREATE TABLE - users
-3. WRITE - Insert users
-4. QUERY - All users
-5. QUERY - With filter
-6. UPDATE - Update user
-7. DELETE - Soft delete
-8. LIST_TABLES
-9. DESCRIBE_TABLE
-10. COMPACT - Optimize files
-
-### AWS Collection (10 requests)
-1. LIST_TABLES
-2. CREATE TABLE - products
-3. WRITE - Insert products
-4. QUERY - All products
-5. QUERY - With filter
-6. UPDATE - Update price
-7. DELETE - Soft delete
-8. DESCRIBE_TABLE
-9. COMPACT - Optimize files
-10. Query existing - users table
+**Additional Requests:**
+- Health Check: `GET {{baseUrl}}/health`
+- API Docs: `GET {{baseUrl}}/docs`
+- API Schema: `GET {{baseUrl}}/openapi.json`
 
 ---
 
-## ⚙️ Environment Variables
+## 🔑 API Key Setup
 
-Both environments use these variables:
+### Current API Key
+```
+McuMsuWDXo1g9zqLBBzVy3uXsIKDklGT8GbIhpyl
+```
 
-| Variable | FastAPI | AWS |
-|----------|---------|-----|
-| `baseUrl` | `http://localhost:9000` | `https://dhxby8kzg1.execute-api.ap-south-1.amazonaws.com/default/ibex-db-lambda` |
-| `tenant_id` | `test-tenant` | `test-tenant` |
-| `namespace` | `default` | `default` |
+**Usage in Postman:**
 
-**To change tenant:**
-1. Click **Environments** in Postman
-2. Select your environment
-3. Change `tenant_id` value
-4. Save
+All AWS requests include this header:
+```
+x-api-key: {{api_key}}
+```
+
+The `{{api_key}}` variable is automatically populated from the environment.
+
+### Create New API Key (if needed)
+
+```bash
+# Create new API key
+aws apigateway create-api-key \
+  --name "your-key-name" \
+  --enabled \
+  --region ap-south-1
+
+# Link to usage plan
+aws apigateway create-usage-plan-key \
+  --usage-plan-id s85lwg \
+  --key-id <YOUR_KEY_ID> \
+  --key-type API_KEY \
+  --region ap-south-1
+```
 
 ---
 
-## 🔧 How Requests Work
+## 🧪 Testing Workflow
 
-### FastAPI Format
+### 1. Setup (One-time)
+
+1. Import collections and environments into Postman
+2. Select `Production - Custom Domain` environment
+3. Verify `api_key` variable is set
+
+### 2. Basic Test Flow
+
+```
+1. LIST_TABLES           → See existing tables
+2. CREATE TABLE          → Create products table
+3. WRITE - Insert        → Add sample data
+4. QUERY - Simple        → Retrieve data
+5. UPDATE                → Modify records
+6. QUERY - Filtered      → Verify updates
+7. DELETE                → Soft delete records
+8. COMPACT               → Optimize table
+```
+
+### 3. Advanced Testing
+
+**Auditing:**
+```
+1. WRITE records
+2. UPDATE some records
+3. DELETE some records
+4. QUERY - View all versions
+5. QUERY - Time travel (as_of timestamp)
+6. QUERY - View deleted records
+```
+
+**Aggregations:**
+```
+1. WRITE - Insert products
+2. QUERY - Count by category
+3. QUERY - Average price
+4. QUERY - Sum stock by category
+```
+
+**Bulk Operations:**
+```
+1. WRITE - 1000 records
+2. UPDATE - Bulk update with filter
+3. QUERY - Verify changes
+4. COMPACT - Optimize
+```
+
+---
+
+## 🎯 Example Requests
+
+### List Tables
 ```http
-POST http://localhost:9000/database
+POST {{baseUrl}}
 Content-Type: application/json
+x-api-key: {{api_key}}
 
 {
-  "operation": "QUERY",
-  "tenant_id": "test-tenant",
-  "namespace": "default",
-  "table": "users"
+  "operation": "LIST_TABLES",
+  "tenant_id": "{{tenant_id}}",
+  "namespace": "{{namespace}}"
 }
 ```
 
-### AWS API Gateway Format
+### Query with Filter
 ```http
-POST https://dhxby8kzg1.execute-api.ap-south-1.amazonaws.com/default/ibex-db-lambda
+POST {{baseUrl}}
 Content-Type: application/json
+x-api-key: {{api_key}}
 
 {
   "operation": "QUERY",
-  "tenant_id": "test-tenant",
-  "namespace": "default",
-  "table": "users"
+  "tenant_id": "{{tenant_id}}",
+  "namespace": "{{namespace}}",
+  "table": "products",
+  "filter": {
+    "price": {"gte": 100, "lte": 500},
+    "category": {"in": ["electronics", "furniture"]}
+  },
+  "sort": [{"field": "price", "order": "DESC"}],
+  "limit": 10
 }
 ```
 
-**Key Difference**: 
-- FastAPI uses `/database` path
-- API Gateway uses base URL directly (no `/database` path)
+### Bulk Update
+```http
+POST {{baseUrl}}
+Content-Type: application/json
+x-api-key: {{api_key}}
+
+{
+  "operation": "UPDATE",
+  "tenant_id": "{{tenant_id}}",
+  "namespace": "{{namespace}}",
+  "table": "products",
+  "filter": {
+    "category": {"eq": "electronics"}
+  },
+  "updates": {
+    "discount": 10,
+    "on_sale": true
+  }
+}
+```
+
+### Time Travel Query
+```http
+POST {{baseUrl}}
+Content-Type: application/json
+x-api-key: {{api_key}}
+
+{
+  "operation": "QUERY",
+  "tenant_id": "{{tenant_id}}",
+  "namespace": "{{namespace}}",
+  "table": "users",
+  "as_of": "2025-11-13T00:00:00Z",
+  "limit": 10
+}
+```
 
 ---
 
-## 🧪 Test Scenarios
+## 📊 Response Format
 
-### Scenario 1: Complete CRUD Flow (FastAPI)
-
-1. Health Check → Verify server is running
-2. CREATE TABLE → Create `users` table
-3. WRITE → Insert 3 users (Alice, Bob, Charlie)
-4. QUERY All → See all users
-5. UPDATE → Update Alice's age
-6. QUERY Filter → Query users by age
-7. DELETE → Soft delete Charlie
-8. QUERY All → See remaining users (Charlie marked deleted)
-9. LIST_TABLES → Verify table exists
-10. COMPACT → Optimize files
-
-### Scenario 2: Production Test (AWS)
-
-1. LIST_TABLES → See existing tables
-2. CREATE TABLE → Create `products` table
-3. WRITE → Insert 3 products
-4. QUERY All → See all products
-5. QUERY Filter → Find cheap products
-6. UPDATE → Update laptop price
-7. DESCRIBE → Check table schema
-8. Query existing → Test `users` table (if exists)
-
----
-
-## 📊 Expected Responses
-
-### Success Response
+### Successful Query
 ```json
 {
   "success": true,
-  "data": [...],
+  "data": [
+    {
+      "_tenant_id": "test-tenant",
+      "_record_id": "abc123",
+      "_timestamp": "2025-11-14T21:00:00.000Z",
+      "_version": 1,
+      "_deleted": false,
+      "_deleted_at": null,
+      "product_id": 1,
+      "name": "Laptop",
+      "price": 999.99
+    }
+  ],
   "metadata": {
-    "row_count": 3,
-    "execution_time_ms": 123.45
+    "row_count": 1,
+    "execution_time_ms": 95.5,
+    "scanned_bytes": 1024,
+    "scanned_rows": 1,
+    "cache_hit": false,
+    "query_id": "xyz-789"
   },
-  "request_id": "abc-123-def",
-  "execution_time_ms": 123.45
+  "request_id": "req-123",
+  "execution_time_ms": 102.3
 }
 ```
 
@@ -178,9 +370,9 @@ Content-Type: application/json
 ```json
 {
   "success": false,
-  "error": "Error message",
-  "request_id": "abc-123-def",
-  "timestamp": "2025-11-14T12:34:56.789Z"
+  "error": "Table not found: products",
+  "request_id": "req-456",
+  "timestamp": "2025-11-14T21:00:00.000Z"
 }
 ```
 
@@ -188,162 +380,140 @@ Content-Type: application/json
 
 ## 🐛 Troubleshooting
 
-### FastAPI: "Could not send request"
+### API Key Issues
+
+**Error:** `{"message":"Forbidden"}`
+
+**Solution:**
+1. Verify `api_key` variable is set in environment
+2. Check header: `x-api-key: {{api_key}}`
+3. Ensure API key is linked to usage plan
+
+### Custom Domain Not Working
+
+**Error:** `{"message":"Not Found"}`
+
+**Solution:**
+1. Switch to "AWS - API Gateway Direct" environment
+2. Custom domain may be propagating (wait 5-10 minutes)
+3. Verify base path mapping exists
+
+### Local FastAPI Not Running
+
+**Error:** Connection refused
+
 **Solution:**
 ```bash
-# Check if FastAPI is running
-docker-compose ps
-
-# Start if not running
-docker-compose up -d fastapi
-
-# Check logs
-docker-compose logs fastapi
+cd docker
+docker-compose ps  # Check if fastapi is running
+docker-compose up -d fastapi  # Start if not running
+docker-compose logs -f fastapi  # Check logs
 ```
 
-### AWS: "Could not get any response"
-**Solution:**
-1. Verify API Gateway URL is correct
-2. Test with curl:
-   ```bash
-   curl -X POST "https://dhxby8kzg1.execute-api.ap-south-1.amazonaws.com/default/ibex-db-lambda" \
-     -H "Content-Type: application/json" \
-     -d '{"operation":"LIST_TABLES","tenant_id":"test-tenant","namespace":"default"}'
-   ```
-3. Check Lambda logs in CloudWatch
+### Wrong Request Format
 
-### Variables not replacing (showing as `{{baseUrl}}`)
+**Error:** `Validation error: schema - Input should be a valid dictionary`
+
 **Solution:**
-1. Make sure environment is selected (top-right dropdown)
-2. Variables should turn orange when hovering
-3. Re-import environment if needed
+- Ensure `schema` has `fields` key:
+```json
+{
+  "schema": {
+    "fields": {
+      "id": {"type": "long", "required": true}
+    }
+  }
+}
+```
 
 ---
 
-## 📝 Tips
+## 📝 Schema Format Reference
 
-### 1. Run Collection Automatically
-1. Click collection name → **Run**
-2. Select environment
-3. Click **Run Collection**
-4. All requests run in sequence!
-
-### 2. Save Responses
-Right-click on request → **Save as Example**
-
-### 3. Test Different Tenants
-Change `tenant_id` in environment:
-- `test-tenant` → Your data
-- `customer-123` → Different tenant
-- `demo-tenant` → Demo data
-
-Data is isolated per tenant!
-
-### 4. View Request Details
-Click **Console** (bottom) to see:
-- Full request/response
-- Headers
-- Timing
-- Errors
-
----
-
-## 🎯 Common Operations
-
-### Create New Table
+### Correct Format
 ```json
 {
   "operation": "CREATE_TABLE",
   "tenant_id": "test-tenant",
   "namespace": "default",
-  "table": "orders",
-  "schema": [
-    {"name": "order_id", "type": "long", "nullable": false},
-    {"name": "customer_name", "type": "string", "nullable": false},
-    {"name": "total", "type": "double", "nullable": false}
-  ]
-}
-```
-
-### Query with Aggregations
-```json
-{
-  "operation": "QUERY",
-  "tenant_id": "test-tenant",
-  "table": "orders",
-  "aggregations": [
-    {"op": "sum", "field": "total", "alias": "total_revenue"},
-    {"op": "count", "field": null, "alias": "order_count"}
-  ],
-  "group_by": ["customer_name"]
-}
-```
-
-### Hard Delete (Physical)
-```json
-{
-  "operation": "DELETE",
-  "tenant_id": "test-tenant",
   "table": "users",
-  "filter": {"id": {"eq": 1}},
-  "hard_delete": true
+  "schema": {
+    "fields": {
+      "id": {"type": "long", "required": true},
+      "name": {"type": "string", "required": true},
+      "email": {"type": "string", "required": false},
+      "age": {"type": "integer", "required": false}
+    }
+  }
 }
 ```
 
----
-
-## 📚 Additional Resources
-
-- **Main README**: `../../README.md`
-- **API Documentation**: Start FastAPI and visit `http://localhost:9000/documentation`
-- **Swagger UI**: `http://localhost:9000/docs` (FastAPI only)
-- **Lambda Test Events**: `../lambda_test_events/`
-- **Test Script**: `../../test_local.sh`
-
----
-
-## 🔐 Security Notes
-
-### Local Development
-- ✅ No authentication needed
-- ✅ Accessible only on localhost
-- ✅ Use test data only
-
-### AWS Production
-- ⚠️ **Currently no authentication** (be careful!)
-- 🔒 Recommended: Enable IAM authentication
-- 🔒 Recommended: Add API key
-- 🔒 Recommended: Enable throttling
-
-**To add API key:**
-1. AWS Console → API Gateway
-2. Create API Key
-3. Create Usage Plan
-4. In Postman, add header: `x-api-key: YOUR_KEY`
+### Supported Types
+- `boolean`
+- `integer` / `int`
+- `long`
+- `float`
+- `double`
+- `decimal(precision, scale)`
+- `date`
+- `time`
+- `timestamp`
+- `timestamptz`
+- `string`
+- `uuid`
+- `fixed(length)`
+- `binary`
 
 ---
 
-## ✅ Checklist Before Production
+## 🚀 Performance Tips
 
-- [ ] Enable IAM authentication on API Gateway
-- [ ] Add API key and usage plan
-- [ ] Enable CloudWatch logging
-- [ ] Set up throttling (100 req/s recommended)
-- [ ] Test with production tenant ID
-- [ ] Run compaction after bulk loads
-- [ ] Set up monitoring alerts
-- [ ] Document API for your team
+1. **Use Projections**: Only select fields you need
+   ```json
+   {"projection": ["id", "name", "price"]}
+   ```
+
+2. **Add Indexes**: Use filters on indexed fields
+   ```json
+   {"filter": {"_tenant_id": {"eq": "test-tenant"}}}
+   ```
+
+3. **Limit Results**: Always use pagination
+   ```json
+   {"limit": 100, "offset": 0}
+   ```
+
+4. **Compact Regularly**: Optimize table files
+   ```json
+   {"operation": "COMPACT", "force": true}
+   ```
+
+5. **Use Cache**: Metadata is cached for 5 minutes
 
 ---
 
-**Happy Testing! 🚀**
+## 📞 Support
 
-Questions? Check the main [README.md](../../README.md) or logs:
-```bash
-# FastAPI logs
-docker-compose logs fastapi
+- **Documentation**: See `README.md` in project root
+- **API Reference**: See `API_ENDPOINTS.md`
+- **Schemas**: See `SCHEMA_FORMAT.md`
 
-# AWS Lambda logs
-aws logs tail /aws/lambda/ibex-db-lambda --follow --region ap-south-1
-```
+---
 
+## ✅ Validation Checklist
+
+Before considering the API production-ready:
+
+- [x] All requests work with Production environment
+- [x] API key authentication is working
+- [x] Custom domain is accessible
+- [x] CRUD operations function correctly
+- [x] Filters and sorting work as expected
+- [x] Aggregations return correct results
+- [x] Time travel queries work
+- [x] Bulk updates handle multiple records
+- [x] Error responses are clear and helpful
+- [x] Performance is acceptable (<200ms for reads)
+- [x] Compaction optimizes table files
+
+**Status:** ✅ Production Ready!

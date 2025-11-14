@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Ibex DB - FastAPI (Local)",
-    "description": "Complete test suite for FastAPI local development\n\nEnvironment: FastAPI - Local Development\nBase URL: http://localhost:9000\n\nBefore running:\n1. cd docker && docker-compose up -d fastapi\n2. Select 'FastAPI - Local Development' environment\n3. Run requests in order",
+    "description": "Complete test suite for FastAPI local development including auditing, time travel, and bulk operations\n\nEnvironment: FastAPI - Local Development\nBase URL: http://localhost:9000\n\nBefore running:\n1. cd docker && docker-compose up -d fastapi\n2. Select 'FastAPI - Local Development' environment\n3. Run requests in order",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -95,7 +95,45 @@
       }
     },
     {
-      "name": "UPDATE - Update user",
+      "name": "QUERY - Count all users",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"aggregations\": [\n    {\"op\": \"count\", \"field\": null, \"alias\": \"total_count\"}\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/database",
+          "host": ["{{baseUrl}}"],
+          "path": ["database"]
+        },
+        "description": "Count total users"
+      }
+    },
+    {
+      "name": "QUERY - Count with filter",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"filter\": {\n    \"age\": {\"gte\": 30}\n  },\n  \"aggregations\": [\n    {\"op\": \"count\", \"field\": null, \"alias\": \"count_over_30\"}\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/database",
+          "host": ["{{baseUrl}}"],
+          "path": ["database"]
+        },
+        "description": "Count users aged 30 or older"
+      }
+    },
+    {
+      "name": "UPDATE - Single record",
       "request": {
         "method": "POST",
         "header": [
@@ -110,7 +148,140 @@
           "host": ["{{baseUrl}}"],
           "path": ["database"]
         },
-        "description": "Update Alice's age"
+        "description": "Update Alice's age (creates Version 2)"
+      }
+    },
+    {
+      "name": "UPDATE - Bulk update (multiple records)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"UPDATE\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"updates\": {\"email\": \"updated@example.com\"},\n  \"filter\": {\n    \"age\": {\"gte\": 30}\n  }\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/database",
+          "host": ["{{baseUrl}}"],
+          "path": ["database"]
+        },
+        "description": "Bulk update: Update email for all users aged 30+"
+      }
+    },
+    {
+      "name": "AUDIT - View all versions of a record",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"filter\": {\"name\": {\"eq\": \"Alice\"}},\n  \"projection\": [\"_version\", \"_timestamp\", \"name\", \"email\", \"age\"],\n  \"sort\": [{\"field\": \"_version\", \"order\": \"asc\"}]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/database",
+          "host": ["{{baseUrl}}"],
+          "path": ["database"]
+        },
+        "description": "View complete version history for Alice"
+      }
+    },
+    {
+      "name": "AUDIT - Get latest version only",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"filter\": {\"name\": {\"eq\": \"Alice\"}},\n  \"sort\": [{\"field\": \"_version\", \"order\": \"desc\"}],\n  \"limit\": 1\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/database",
+          "host": ["{{baseUrl}}"],
+          "path": ["database"]
+        },
+        "description": "Get only the latest version of Alice's record"
+      }
+    },
+    {
+      "name": "AUDIT - Track field changes over time",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"filter\": {\"name\": {\"eq\": \"Alice\"}},\n  \"projection\": [\"_timestamp\", \"age\", \"_version\"],\n  \"sort\": [{\"field\": \"_timestamp\", \"order\": \"asc\"}]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/database",
+          "host": ["{{baseUrl}}"],
+          "path": ["database"]
+        },
+        "description": "Track how Alice's age changed over time"
+      }
+    },
+    {
+      "name": "AUDIT - Count versions per user",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"aggregations\": [\n    {\"op\": \"count\", \"field\": null, \"alias\": \"version_count\"}\n  ],\n  \"group_by\": [\"name\"],\n  \"sort\": [{\"field\": \"version_count\", \"order\": \"desc\"}]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/database",
+          "host": ["{{baseUrl}}"],
+          "path": ["database"]
+        },
+        "description": "Count how many versions each user has"
+      }
+    },
+    {
+      "name": "AUDIT - Find changes in time range",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"filter\": {\n    \"_timestamp\": {\n      \"gte\": \"2025-11-14T00:00:00\",\n      \"lte\": \"2025-11-14T23:59:59\"\n    }\n  },\n  \"projection\": [\"_timestamp\", \"_version\", \"name\", \"age\"],\n  \"sort\": [{\"field\": \"_timestamp\", \"order\": \"desc\"}]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/database",
+          "host": ["{{baseUrl}}"],
+          "path": ["database"]
+        },
+        "description": "Find all changes made today"
+      }
+    },
+    {
+      "name": "TIME TRAVEL - Query at specific timestamp",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"as_of\": \"2025-11-14T05:32:30.000000\",\n  \"projection\": [\"_version\", \"_timestamp\", \"name\", \"age\"],\n  \"limit\": 100\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/database",
+          "host": ["{{baseUrl}}"],
+          "path": ["database"]
+        },
+        "description": "Query data as it existed at a specific point in time"
       }
     },
     {
@@ -130,6 +301,25 @@
           "path": ["database"]
         },
         "description": "Soft delete Charlie"
+      }
+    },
+    {
+      "name": "AUDIT - View soft-deleted records",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"include_deleted\": true,\n  \"filter\": {\"_deleted\": {\"eq\": true}},\n  \"projection\": [\"name\", \"_deleted_at\", \"_timestamp\"]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/database",
+          "host": ["{{baseUrl}}"],
+          "path": ["database"]
+        },
+        "description": "Query soft-deleted records (normally hidden)"
       }
     },
     {
@@ -186,9 +376,8 @@
           "host": ["{{baseUrl}}"],
           "path": ["database"]
         },
-        "description": "Compact table files"
+        "description": "Compact table files and expire old snapshots"
       }
     }
   ]
 }
-
