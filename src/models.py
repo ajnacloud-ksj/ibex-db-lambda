@@ -307,21 +307,60 @@ class ErrorDetail(BaseModel):
     details: Optional[Dict[str, Any]] = Field(None, description="Additional error details")
     suggestion: Optional[str] = Field(None, description="Suggested fix")
 
-class QueryResponse(BaseModel, Generic[T]):
-    """Generic query response with type safety"""
+# ============================================================================
+# Base Response Models - Standard for All Operations
+# ============================================================================
 
+class ResponseMetadata(BaseModel):
+    """Standard metadata included in all responses"""
+    
+    request_id: str = Field(..., description="Unique request identifier")
+    execution_time_ms: float = Field(..., description="Total execution time in milliseconds")
+
+class BaseResponse(BaseModel):
+    """Base response model - all operation responses inherit from this
+    
+    Provides consistent structure:
+    - success: Operation status
+    - data: Operation-specific results
+    - metadata: Execution information
+    - error: Error details (only if success=false)
+    """
+    
     success: bool = Field(..., description="Operation success status")
-    data: Optional[List[T]] = Field(None, description="Query results")
-    error: Optional[ErrorDetail] = Field(None, description="Error details if failed")
-    metadata: Optional[QueryMetadata] = Field(None, description="Query execution metadata")
-
+    metadata: ResponseMetadata = Field(..., description="Request and execution metadata")
+    error: Optional[ErrorDetail] = Field(None, description="Error details if operation failed")
+    
     @model_validator(mode='after')
     def validate_response(self):
-        """Ensure response has either data or error"""
-        if self.success and self.data is None:
-            raise ValueError("Successful response must include data")
+        """Ensure response has error only when failed"""
         if not self.success and self.error is None:
-            raise ValueError("Failed response must include error")
+            raise ValueError("Failed response must include error details")
+        return self
+
+class QueryResponseData(BaseModel):
+    """Data structure for query responses"""
+    
+    records: List[Dict[str, Any]] = Field(..., description="Query result records")
+    query_metadata: Optional[QueryMetadata] = Field(None, description="Query-specific metadata")
+
+class QueryResponse(BaseResponse):
+    """Query operation response with standardized structure
+    
+    Structure:
+    - success: bool
+    - data: { records: [...], query_metadata: {...} }
+    - metadata: { request_id, execution_time_ms }
+    - error: { code, message, ... } (if failed)
+    """
+    
+    data: Optional[QueryResponseData] = Field(None, description="Query results and metadata")
+    
+    @model_validator(mode='after')
+    def validate_query_response(self):
+        """Ensure successful query has data"""
+        if self.success and self.data is None:
+            raise ValueError("Successful query must include data")
         return self
 
 # ============================================================================
@@ -415,19 +454,17 @@ class WriteRequest(BaseModel):
     partition: Optional[PartitionConfig] = None
     properties: Optional[TableProperties] = None
 
-class WriteResponse(BaseModel):
-    """Write operation response"""
-    success: bool
-    records_written: int
-    error: Optional[ErrorDetail] = None
-    compaction_recommended: bool = Field(
-        default=False,
-        description="Whether compaction should be triggered"
-    )
-    small_files_count: Optional[int] = Field(
-        None,
-        description="Number of small files detected (if check performed)"
-    )
+class WriteResponseData(BaseModel):
+    """Data structure for write operation results"""
+    
+    records_written: int = Field(..., description="Number of records successfully written")
+    compaction_recommended: bool = Field(False, description="Whether compaction should be triggered")
+    small_files_count: Optional[int] = Field(None, description="Number of small files detected (if check performed)")
+
+class WriteResponse(BaseResponse):
+    """Write operation response with standardized structure"""
+    
+    data: Optional[WriteResponseData] = Field(None, description="Write operation results")
 
 # ============================================================================
 # Update Operations
@@ -443,11 +480,15 @@ class UpdateRequest(BaseModel):
     filters: List[Filter] = Field(..., description="Filter conditions (all ANDed together)")
     table_schema: Optional[SchemaDefinition] = Field(None, alias="schema")
 
-class UpdateResponse(BaseModel):
-    """Update operation response"""
-    success: bool
-    records_updated: int
-    error: Optional[ErrorDetail] = None
+class UpdateResponseData(BaseModel):
+    """Data structure for update operation results"""
+    
+    records_updated: int = Field(..., description="Number of records successfully updated")
+
+class UpdateResponse(BaseResponse):
+    """Update operation response with standardized structure"""
+    
+    data: Optional[UpdateResponseData] = Field(None, description="Update operation results")
 
 # ============================================================================
 # Delete Operations
@@ -468,11 +509,15 @@ class DeleteRequest(BaseModel):
     mode: DeleteMode = DeleteMode.SOFT
     table_schema: Optional[SchemaDefinition] = Field(None, alias="schema")
 
-class DeleteResponse(BaseModel):
-    """Delete operation response"""
-    success: bool
-    records_deleted: int
-    error: Optional[ErrorDetail] = None
+class DeleteResponseData(BaseModel):
+    """Data structure for delete operation results"""
+    
+    records_deleted: int = Field(..., description="Number of records deleted")
+
+class DeleteResponse(BaseResponse):
+    """Delete operation response with standardized structure"""
+    
+    data: Optional[DeleteResponseData] = Field(None, description="Delete operation results")
 
 class HardDeleteRequest(BaseModel):
     """Hard delete request - physically removes records"""
@@ -484,12 +529,16 @@ class HardDeleteRequest(BaseModel):
     confirm: bool = Field(..., description="Must be True to confirm physical deletion")
     table_schema: Optional[SchemaDefinition] = Field(None, alias="schema")
 
-class HardDeleteResponse(BaseModel):
-    """Hard delete operation response"""
-    success: bool
-    records_deleted: int
-    files_rewritten: Optional[int] = None
-    error: Optional[ErrorDetail] = None
+class HardDeleteResponseData(BaseModel):
+    """Data structure for hard delete operation results"""
+    
+    records_deleted: int = Field(..., description="Number of records physically deleted")
+    files_rewritten: Optional[int] = Field(None, description="Number of data files rewritten")
+
+class HardDeleteResponse(BaseResponse):
+    """Hard delete operation response with standardized structure"""
+    
+    data: Optional[HardDeleteResponseData] = Field(None, description="Hard delete operation results")
 
 # ============================================================================
 # Compact Operations
@@ -545,13 +594,17 @@ class CompactionStats(BaseModel):
     compaction_time_ms: float = Field(..., description="Time taken for compaction")
     small_files_remaining: int = Field(..., description="Small files still remaining")
 
-class CompactResponse(BaseModel):
-    """Compaction operation response"""
-    success: bool
+class CompactResponseData(BaseModel):
+    """Data structure for compaction operation results"""
+    
     compacted: bool = Field(..., description="Whether compaction was performed")
     reason: Optional[str] = Field(None, description="Reason if compaction skipped")
-    stats: Optional[CompactionStats] = None
-    error: Optional[ErrorDetail] = None
+    stats: Optional[CompactionStats] = Field(None, description="Compaction statistics")
+
+class CompactResponse(BaseResponse):
+    """Compaction operation response with standardized structure"""
+    
+    data: Optional[CompactResponseData] = Field(None, description="Compaction operation results")
 
 # ============================================================================
 # Create Table Operations
@@ -568,12 +621,16 @@ class CreateTableRequest(BaseModel):
     properties: Optional[TableProperties] = None
     if_not_exists: bool = True
 
-class CreateTableResponse(BaseModel):
-    """Create table response"""
-    success: bool
-    table_created: bool
-    table_existed: bool = False
-    error: Optional[ErrorDetail] = None
+class CreateTableResponseData(BaseModel):
+    """Data structure for create table operation results"""
+    
+    table_created: bool = Field(..., description="Whether table was created")
+    table_existed: bool = Field(False, description="Whether table already existed")
+
+class CreateTableResponse(BaseResponse):
+    """Create table operation response with standardized structure"""
+    
+    data: Optional[CreateTableResponseData] = Field(None, description="Create table operation results")
 
 # ============================================================================
 # Describe Table Operations
@@ -600,17 +657,25 @@ class TableDescription(BaseModel):
     row_count: Optional[int] = None
     size_bytes: Optional[int] = None
 
-class ListTablesResponse(BaseModel):
-    """List tables response"""
-    success: bool = True
-    tables: List[str] = Field(default_factory=list)
-    error: Optional[str] = None
+class ListTablesResponseData(BaseModel):
+    """Data structure for list tables operation results"""
+    
+    tables: List[str] = Field(default_factory=list, description="List of table names")
 
-class DescribeTableResponse(BaseModel):
-    """Describe table response"""
-    success: bool = True
-    table: Optional[TableDescription] = None
-    error: Optional[str] = None
+class ListTablesResponse(BaseResponse):
+    """List tables operation response with standardized structure"""
+    
+    data: Optional[ListTablesResponseData] = Field(None, description="List tables operation results")
+
+class DescribeTableResponseData(BaseModel):
+    """Data structure for describe table operation results"""
+    
+    table: TableDescription = Field(..., description="Table description and metadata")
+
+class DescribeTableResponse(BaseResponse):
+    """Describe table operation response with standardized structure"""
+    
+    data: Optional[DescribeTableResponseData] = Field(None, description="Describe table operation results")
 
 # Update forward references for new models
 FieldDefinition.model_rebuild()

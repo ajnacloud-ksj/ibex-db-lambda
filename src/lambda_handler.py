@@ -195,13 +195,20 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             print(f"✗ Unknown operation: {operation}")
             return error_response(400, f'Unknown operation: {operation}', request_id)
 
-        # Convert result to response
+        # Calculate execution time
         execution_time_ms = (time.time() - start_time) * 1000
+        
+        # Reconstruct response with proper metadata
+        # The operation returns a response, but we need to add/update the metadata
+        from src.models import ResponseMetadata
+        
         response_body = result.model_dump() if hasattr(result, 'model_dump') else result.dict()
         
-        # Add metadata to response
-        response_body['request_id'] = request_id
-        response_body['execution_time_ms'] = round(execution_time_ms, 2)
+        # Update metadata with actual request_id and execution_time
+        response_body['metadata'] = {
+            'request_id': request_id,
+            'execution_time_ms': round(execution_time_ms, 2)
+        }
         
         success = response_body.get('success', False)
         status_code = 200 if success else 400

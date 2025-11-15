@@ -374,16 +374,22 @@ class FullIcebergOperations:
             try:
                 existing_table = self.catalog.load_table(table_identifier)
                 if not request.if_not_exists:
+                    from src.models import ResponseMetadata
                     return CreateTableResponse(
                         success=False,
-                        table_created=False,
-                        table_existed=True,
+                        data=None,
+                        metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
                         error=ErrorDetail(code="TABLE_EXISTS", message="Table already exists")
                     )
+                from src.models import CreateTableResponseData, ResponseMetadata
                 return CreateTableResponse(
                     success=True,
-                    table_created=False,
-                    table_existed=True
+                    data=CreateTableResponseData(
+                        table_created=False,
+                        table_existed=True
+                    ),
+                    metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
+                    error=None
                 )
             except:
                 pass  # Table doesn't exist, create it
@@ -424,16 +430,23 @@ class FullIcebergOperations:
             )
 
             print(f"✓ Created Iceberg table: {table_identifier}")
+            from src.models import CreateTableResponseData, ResponseMetadata
             return CreateTableResponse(
                 success=True,
-                table_created=True,
-                table_existed=False
+                data=CreateTableResponseData(
+                    table_created=True,
+                    table_existed=False
+                ),
+                metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
+                error=None
             )
 
         except Exception as e:
+            from src.models import ResponseMetadata
             return CreateTableResponse(
                 success=False,
-                table_created=False,
+                data=None,
+                metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
                 error=ErrorDetail(code="CREATE_ERROR", message=str(e))
             )
 
@@ -537,17 +550,24 @@ class FullIcebergOperations:
                 # Don't fail write if compaction check fails
                 print(f"Warning: Compaction check failed: {e}")
 
+            from src.models import WriteResponseData, ResponseMetadata
             return WriteResponse(
                 success=True,
-                records_written=len(enriched_records),
-                compaction_recommended=compaction_recommended,
-                small_files_count=small_files_count
+                data=WriteResponseData(
+                    records_written=len(enriched_records),
+                    compaction_recommended=compaction_recommended,
+                    small_files_count=small_files_count
+                ),
+                metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
+                error=None
             )
 
         except Exception as e:
+            from src.models import ResponseMetadata
             return WriteResponse(
                 success=False,
-                records_written=0,
+                data=None,
+                metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
                 error=ErrorDetail(code="WRITE_ERROR", message=str(e))
             )
 
@@ -575,15 +595,20 @@ class FullIcebergOperations:
                 metadata_path = self._get_metadata_path(table_identifier)
             except Exception as e:
                 # Table doesn't exist
+                from src.models import QueryResponseData, ResponseMetadata
                 return QueryResponse(
                     success=True,
-                    data=[],
-                    metadata=QueryMetadata(
-                        row_count=0,
-                        execution_time_ms=0,
-                        cache_hit=False,
-                        query_id=query_id
-                    )
+                    data=QueryResponseData(
+                        records=[],
+                        query_metadata=QueryMetadata(
+                            row_count=0,
+                            execution_time_ms=0,
+                            cache_hit=False,
+                            query_id=query_id
+                        )
+                    ),
+                    metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
+                    error=None
                 )
 
             # Build SELECT clause based on projection and aggregations
@@ -656,23 +681,31 @@ class FullIcebergOperations:
                 except:
                     scanned_bytes = None
 
+            from src.models import QueryResponseData, ResponseMetadata
             return QueryResponse(
                 success=True,
-                data=data,
-                metadata=QueryMetadata(
-                    row_count=len(data),
-                    execution_time_ms=round(query_exec_time, 2),
-                    scanned_bytes=scanned_bytes,
-                    scanned_rows=scanned_rows,
-                    cache_hit=cache_hit,
-                    query_id=query_id,
-                    warnings=None
-                )
+                data=QueryResponseData(
+                    records=data,
+                    query_metadata=QueryMetadata(
+                        row_count=len(data),
+                        execution_time_ms=round(query_exec_time, 2),
+                        scanned_bytes=scanned_bytes,
+                        scanned_rows=scanned_rows,
+                        cache_hit=cache_hit,
+                        query_id=query_id,
+                        warnings=None
+                    )
+                ),
+                metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
+                error=None
             )
 
         except Exception as e:
+            from src.models import ResponseMetadata
             return QueryResponse(
                 success=False,
+                data=None,
+                metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
                 error=ErrorDetail(code="QUERY_ERROR", message=str(e))
             )
 
@@ -688,16 +721,19 @@ class FullIcebergOperations:
             )
             query_result = self.query(query_req)
 
-            if not query_result.success or not query_result.data:
+            if not query_result.success or not query_result.data or not query_result.data.records:
+                from src.models import UpdateResponseData, ResponseMetadata
                 return UpdateResponse(
                     success=True,
-                    records_updated=0
+                    data=UpdateResponseData(records_updated=0),
+                    metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
+                    error=None
                 )
 
             # Update records
             timestamp = datetime.utcnow()
             updated_records = []
-            for record in query_result.data:
+            for record in query_result.data.records:
                 # Ensure proper types before updating
                 record["_version"] = int(record.get("_version", 1)) + 1
                 record["_timestamp"] = timestamp
@@ -733,15 +769,20 @@ class FullIcebergOperations:
             # Append to Iceberg table
             table.append(arrow_table)
 
+            from src.models import UpdateResponseData, ResponseMetadata
             return UpdateResponse(
                 success=True,
-                records_updated=len(updated_records)
+                data=UpdateResponseData(records_updated=len(updated_records)),
+                metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
+                error=None
             )
 
         except Exception as e:
+            from src.models import ResponseMetadata
             return UpdateResponse(
                 success=False,
-                records_updated=0,
+                data=None,
+                metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
                 error=ErrorDetail(code="UPDATE_ERROR", message=str(e))
             )
 
@@ -761,16 +802,22 @@ class FullIcebergOperations:
             )
             update_result = self.update(update_req)
 
+            from src.models import DeleteResponseData, ResponseMetadata
             return DeleteResponse(
                 success=update_result.success,
-                records_deleted=update_result.records_updated,
+                data=DeleteResponseData(
+                    records_deleted=update_result.data.records_updated if update_result.data else 0
+                ) if update_result.success else None,
+                metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
                 error=update_result.error
             )
 
         except Exception as e:
+            from src.models import ResponseMetadata
             return DeleteResponse(
                 success=False,
-                records_deleted=0,
+                data=None,
+                metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
                 error=ErrorDetail(code="DELETE_ERROR", message=str(e))
             )
 
@@ -782,9 +829,11 @@ class FullIcebergOperations:
         try:
             # Safety check: require explicit confirmation
             if not request.confirm:
+                from src.models import ResponseMetadata
                 return HardDeleteResponse(
                     success=False,
-                    records_deleted=0,
+                    data=None,
+                    metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
                     error=ErrorDetail(
                         code="CONFIRMATION_REQUIRED",
                         message="Hard delete requires confirm=true"
@@ -819,10 +868,15 @@ class FullIcebergOperations:
             records_to_delete = count_result[0] if count_result else 0
 
             if records_to_delete == 0:
+                from src.models import HardDeleteResponseData, ResponseMetadata
                 return HardDeleteResponse(
                     success=True,
-                    records_deleted=0,
-                    files_rewritten=0
+                    data=HardDeleteResponseData(
+                        records_deleted=0,
+                        files_rewritten=0
+                    ),
+                    metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
+                    error=None
                 )
 
             # Use PyIceberg's delete to physically remove rows
@@ -847,19 +901,26 @@ class FullIcebergOperations:
             print(f"✓ Hard deleted {records_to_delete} records from {request.table}")
             print(f"  Files rewritten: {files_before - files_after}")
 
+            from src.models import HardDeleteResponseData, ResponseMetadata
             return HardDeleteResponse(
                 success=True,
-                records_deleted=records_to_delete,
-                files_rewritten=files_before - files_after
+                data=HardDeleteResponseData(
+                    records_deleted=records_to_delete,
+                    files_rewritten=files_before - files_after
+                ),
+                metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
+                error=None
             )
 
         except Exception as e:
             print(f"✗ Hard delete failed: {e}")
             import traceback
             traceback.print_exc()
+            from src.models import ResponseMetadata
             return HardDeleteResponse(
                 success=False,
-                records_deleted=0,
+                data=None,
+                metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
                 error=ErrorDetail(code="HARD_DELETE_ERROR", message=str(e))
             )
 
@@ -977,10 +1038,16 @@ class FullIcebergOperations:
             scan_tasks = list(table.scan().plan_files())
 
             if not scan_tasks:
+                from src.models import CompactResponseData, ResponseMetadata
                 return CompactResponse(
                     success=True,
-                    compacted=False,
-                    reason="No files to compact"
+                    data=CompactResponseData(
+                        compacted=False,
+                        reason="No files to compact",
+                        stats=None
+                    ),
+                    metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
+                    error=None
                 )
 
             # Calculate statistics before compaction
@@ -995,10 +1062,16 @@ class FullIcebergOperations:
 
             # Check if compaction is needed
             if not request.force and len(small_files) < min_files_to_compact:
+                from src.models import CompactResponseData, ResponseMetadata
                 return CompactResponse(
                     success=True,
-                    compacted=False,
-                    reason=f"Only {len(small_files)} small files (threshold: {min_files_to_compact})"
+                    data=CompactResponseData(
+                        compacted=False,
+                        reason=f"Only {len(small_files)} small files (threshold: {min_files_to_compact})",
+                        stats=None
+                    ),
+                    metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
+                    error=None
                 )
 
             # Limit files to compact
@@ -1017,10 +1090,16 @@ class FullIcebergOperations:
             result_df = self.conn.execute(sql).fetchdf()
 
             if result_df.empty:
+                from src.models import CompactResponseData, ResponseMetadata
                 return CompactResponse(
                     success=True,
-                    compacted=False,
-                    reason="No data to compact"
+                    data=CompactResponseData(
+                        compacted=False,
+                        reason="No data to compact",
+                        stats=None
+                    ),
+                    metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
+                    error=None
                 )
 
             # Convert to PyArrow table
@@ -1114,18 +1193,26 @@ class FullIcebergOperations:
             print(f"  Size: {total_bytes_before / (1024*1024):.1f}MB → {total_bytes_after / (1024*1024):.1f}MB")
             print(f"  Time: {compaction_time_ms:.0f}ms")
 
+            from src.models import CompactResponseData, ResponseMetadata
             return CompactResponse(
                 success=True,
-                compacted=True,
-                stats=stats
+                data=CompactResponseData(
+                    compacted=True,
+                    reason=None,
+                    stats=stats
+                ),
+                metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
+                error=None
             )
 
         except Exception as e:
             compaction_time_ms = (time.time() - start_time) * 1000
             print(f"✗ Compaction failed after {compaction_time_ms:.0f}ms: {e}")
+            from src.models import ResponseMetadata
             return CompactResponse(
                 success=False,
-                compacted=False,
+                data=None,
+                metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
                 error=ErrorDetail(code="COMPACT_ERROR", message=str(e))
             )
 
@@ -1140,16 +1227,21 @@ class FullIcebergOperations:
             # Extract table names
             table_names = [table[1] for table in tables]  # tables are (namespace, name) tuples
 
+            from src.models import ListTablesResponseData, ResponseMetadata
             return ListTablesResponse(
                 success=True,
-                tables=table_names
+                data=ListTablesResponseData(tables=table_names),
+                metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
+                error=None
             )
 
         except Exception as e:
+            from src.models import ResponseMetadata
             return ListTablesResponse(
                 success=False,
-                tables=[],
-                error=str(e)
+                data=None,
+                metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
+                error=ErrorDetail(code="LIST_ERROR", message=str(e))
             )
 
     def describe_table(self, request: DescribeTableRequest) -> DescribeTableResponse:
@@ -1186,16 +1278,21 @@ class FullIcebergOperations:
                 schema={"fields": schema_fields}
             )
 
+            from src.models import DescribeTableResponseData, ResponseMetadata
             return DescribeTableResponse(
                 success=True,
-                table=table_desc
+                data=DescribeTableResponseData(table=table_desc),
+                metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
+                error=None
             )
 
         except Exception as e:
+            from src.models import ResponseMetadata
             return DescribeTableResponse(
                 success=False,
-                table=None,
-                error=str(e)
+                data=None,
+                metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
+                error=ErrorDetail(code="DESCRIBE_ERROR", message=str(e))
             )
 
     def _map_to_iceberg_type(self, field_type: str):
