@@ -1,0 +1,9 @@
+{
+  "httpMethod": "POST",
+  "path": "/database",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": "{\"operation\": \"CREATE_TABLE\", \"tenant_id\": \"demo-tenant\", \"namespace\": \"default\", \"table\": \"users_with_address\", \"schema\": {\"fields\": {\"user_id\": {\"type\": \"long\", \"required\": true}, \"name\": {\"type\": \"string\", \"required\": true}, \"email\": {\"type\": \"string\", \"required\": true}, \"address\": {\"type\": \"struct\", \"required\": false, \"fields\": {\"street\": {\"type\": \"string\", \"required\": false}, \"city\": {\"type\": \"string\", \"required\": false}, \"state\": {\"type\": \"string\", \"required\": false}, \"zip_code\": {\"type\": \"string\", \"required\": false}, \"country\": {\"type\": \"string\", \"required\": false}}}}}}"
+}
+

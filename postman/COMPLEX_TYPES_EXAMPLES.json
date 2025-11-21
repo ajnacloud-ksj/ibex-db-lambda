@@ -1,0 +1,241 @@
+{
+  "info": {
+    "name": "Complex Types Examples",
+    "description": "Examples for using arrays, maps, and structs in Iceberg tables",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Create Table - Array Example",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"CREATE_TABLE\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"products_with_tags\",\n  \"schema\": {\n    \"fields\": {\n      \"product_id\": {\n        \"type\": \"long\",\n        \"required\": true\n      },\n      \"name\": {\n        \"type\": \"string\",\n        \"required\": true\n      },\n      \"category\": {\n        \"type\": \"string\",\n        \"required\": false\n      },\n      \"price\": {\n        \"type\": \"double\",\n        \"required\": true\n      },\n      \"stock\": {\n        \"type\": \"integer\",\n        \"required\": false\n      },\n      \"tags\": {\n        \"type\": \"array\",\n        \"required\": false,\n        \"items\": {\n          \"type\": \"string\",\n          \"required\": false\n        }\n      }\n    }\n  }\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/database",
+          "host": ["{{base_url}}"],
+          "path": ["database"]
+        }
+      }
+    },
+    {
+      "name": "2. Write - Products with Tags (Array)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"WRITE\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"products_with_tags\",\n  \"records\": [\n    {\n      \"product_id\": 1,\n      \"name\": \"Laptop\",\n      \"category\": \"Electronics\",\n      \"price\": 999.99,\n      \"stock\": 50,\n      \"tags\": [\"electronics\", \"computers\", \"bestseller\"]\n    },\n    {\n      \"product_id\": 2,\n      \"name\": \"Coffee Mug\",\n      \"category\": \"Home\",\n      \"price\": 12.99,\n      \"stock\": 200,\n      \"tags\": [\"home\", \"kitchen\", \"ceramic\"]\n    },\n    {\n      \"product_id\": 3,\n      \"name\": \"Desk Lamp\",\n      \"category\": \"Furniture\",\n      \"price\": 49.99,\n      \"stock\": 75,\n      \"tags\": [\"furniture\", \"lighting\", \"office\"]\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/database",
+          "host": ["{{base_url}}"],
+          "path": ["database"]
+        }
+      }
+    },
+    {
+      "name": "3. Create Table - Struct Example (User with Address)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"CREATE_TABLE\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users_with_address\",\n  \"schema\": {\n    \"fields\": {\n      \"user_id\": {\n        \"type\": \"long\",\n        \"required\": true\n      },\n      \"name\": {\n        \"type\": \"string\",\n        \"required\": true\n      },\n      \"email\": {\n        \"type\": \"string\",\n        \"required\": true\n      },\n      \"address\": {\n        \"type\": \"struct\",\n        \"required\": false,\n        \"fields\": {\n          \"street\": {\n            \"type\": \"string\",\n            \"required\": false\n          },\n          \"city\": {\n            \"type\": \"string\",\n            \"required\": false\n          },\n          \"state\": {\n            \"type\": \"string\",\n            \"required\": false\n          },\n          \"zip_code\": {\n            \"type\": \"string\",\n            \"required\": false\n          },\n          \"country\": {\n            \"type\": \"string\",\n            \"required\": false\n          }\n        }\n      }\n    }\n  }\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/database",
+          "host": ["{{base_url}}"],
+          "path": ["database"]
+        }
+      }
+    },
+    {
+      "name": "4. Write - Users with Address (Struct)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"WRITE\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users_with_address\",\n  \"records\": [\n    {\n      \"user_id\": 1,\n      \"name\": \"John Doe\",\n      \"email\": \"john@example.com\",\n      \"address\": {\n        \"street\": \"123 Main St\",\n        \"city\": \"San Francisco\",\n        \"state\": \"CA\",\n        \"zip_code\": \"94105\",\n        \"country\": \"USA\"\n      }\n    },\n    {\n      \"user_id\": 2,\n      \"name\": \"Jane Smith\",\n      \"email\": \"jane@example.com\",\n      \"address\": {\n        \"street\": \"456 Oak Ave\",\n        \"city\": \"New York\",\n        \"state\": \"NY\",\n        \"zip_code\": \"10001\",\n        \"country\": \"USA\"\n      }\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/database",
+          "host": ["{{base_url}}"],
+          "path": ["database"]
+        }
+      }
+    },
+    {
+      "name": "5. Create Table - Complex Nested (Orders)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"CREATE_TABLE\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"orders\",\n  \"schema\": {\n    \"fields\": {\n      \"order_id\": {\n        \"type\": \"long\",\n        \"required\": true\n      },\n      \"customer_id\": {\n        \"type\": \"long\",\n        \"required\": true\n      },\n      \"order_date\": {\n        \"type\": \"timestamp\",\n        \"required\": true\n      },\n      \"total_amount\": {\n        \"type\": \"double\",\n        \"required\": true\n      },\n      \"items\": {\n        \"type\": \"array\",\n        \"required\": false,\n        \"items\": {\n          \"type\": \"struct\",\n          \"required\": false,\n          \"fields\": {\n            \"product_id\": {\n              \"type\": \"long\",\n              \"required\": true\n            },\n            \"product_name\": {\n              \"type\": \"string\",\n              \"required\": true\n            },\n            \"quantity\": {\n              \"type\": \"integer\",\n              \"required\": true\n            },\n            \"unit_price\": {\n              \"type\": \"double\",\n              \"required\": true\n            },\n            \"subtotal\": {\n              \"type\": \"double\",\n              \"required\": true\n            }\n          }\n        }\n      },\n      \"shipping_address\": {\n        \"type\": \"struct\",\n        \"required\": true,\n        \"fields\": {\n          \"street\": {\n            \"type\": \"string\",\n            \"required\": true\n          },\n          \"city\": {\n            \"type\": \"string\",\n            \"required\": true\n          },\n          \"state\": {\n            \"type\": \"string\",\n            \"required\": true\n          },\n          \"zip_code\": {\n            \"type\": \"string\",\n            \"required\": true\n          }\n        }\n      }\n    }\n  }\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/database",
+          "host": ["{{base_url}}"],
+          "path": ["database"]
+        }
+      }
+    },
+    {
+      "name": "6. Write - Complex Order (Array of Structs)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"WRITE\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"orders\",\n  \"records\": [\n    {\n      \"order_id\": 1001,\n      \"customer_id\": 501,\n      \"order_date\": \"2024-01-15T10:30:00Z\",\n      \"total_amount\": 1249.97,\n      \"items\": [\n        {\n          \"product_id\": 1,\n          \"product_name\": \"Laptop\",\n          \"quantity\": 1,\n          \"unit_price\": 999.99,\n          \"subtotal\": 999.99\n        },\n        {\n          \"product_id\": 2,\n          \"product_name\": \"Mouse\",\n          \"quantity\": 2,\n          \"unit_price\": 24.99,\n          \"subtotal\": 49.98\n        },\n        {\n          \"product_id\": 3,\n          \"product_name\": \"USB Cable\",\n          \"quantity\": 5,\n          \"unit_price\": 9.99,\n          \"subtotal\": 49.95\n        }\n      ],\n      \"shipping_address\": {\n        \"street\": \"789 Tech Blvd\",\n        \"city\": \"Seattle\",\n        \"state\": \"WA\",\n        \"zip_code\": \"98101\"\n      }\n    },\n    {\n      \"order_id\": 1002,\n      \"customer_id\": 502,\n      \"order_date\": \"2024-01-16T14:20:00Z\",\n      \"total_amount\": 1599.98,\n      \"items\": [\n        {\n          \"product_id\": 1,\n          \"product_name\": \"Laptop\",\n          \"quantity\": 1,\n          \"unit_price\": 999.99,\n          \"subtotal\": 999.99\n        },\n        {\n          \"product_id\": 4,\n          \"product_name\": \"Monitor\",\n          \"quantity\": 1,\n          \"unit_price\": 299.99,\n          \"subtotal\": 299.99\n        },\n        {\n          \"product_id\": 5,\n          \"product_name\": \"Keyboard\",\n          \"quantity\": 1,\n          \"unit_price\": 149.99,\n          \"subtotal\": 149.99\n        }\n      ],\n      \"shipping_address\": {\n        \"street\": \"100 Innovation Dr\",\n        \"city\": \"Austin\",\n        \"state\": \"TX\",\n        \"zip_code\": \"73301\"\n      }\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/database",
+          "host": ["{{base_url}}"],
+          "path": ["database"]
+        }
+      }
+    },
+    {
+      "name": "7. Create Table - Map Example (Product Metadata)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"CREATE_TABLE\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"products_with_metadata\",\n  \"schema\": {\n    \"fields\": {\n      \"product_id\": {\n        \"type\": \"long\",\n        \"required\": true\n      },\n      \"name\": {\n        \"type\": \"string\",\n        \"required\": true\n      },\n      \"metadata\": {\n        \"type\": \"map\",\n        \"required\": false,\n        \"key_type\": \"string\",\n        \"value_type\": {\n          \"type\": \"string\",\n          \"required\": false\n        }\n      }\n    }\n  }\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/database",
+          "host": ["{{base_url}}"],
+          "path": ["database"]
+        }
+      }
+    },
+    {
+      "name": "8. Write - Products with Map Metadata",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"WRITE\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"products_with_metadata\",\n  \"records\": [\n    {\n      \"product_id\": 1,\n      \"name\": \"Laptop\",\n      \"metadata\": {\n        \"brand\": \"Dell\",\n        \"model\": \"XPS 15\",\n        \"color\": \"Silver\",\n        \"warranty\": \"2 years\",\n        \"processor\": \"Intel i7\",\n        \"ram\": \"16GB\",\n        \"storage\": \"512GB SSD\"\n      }\n    },\n    {\n      \"product_id\": 2,\n      \"name\": \"Mouse\",\n      \"metadata\": {\n        \"brand\": \"Logitech\",\n        \"model\": \"MX Master 3\",\n        \"color\": \"Black\",\n        \"wireless\": \"true\",\n        \"battery_life\": \"70 days\"\n      }\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/database",
+          "host": ["{{base_url}}"],
+          "path": ["database"]
+        }
+      }
+    },
+    {
+      "name": "9. Query - All Products with Tags",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"products_with_tags\",\n  \"limit\": 100\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/database",
+          "host": ["{{base_url}}"],
+          "path": ["database"]
+        }
+      }
+    },
+    {
+      "name": "10. Query - Users with Address",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users_with_address\",\n  \"limit\": 100\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/database",
+          "host": ["{{base_url}}"],
+          "path": ["database"]
+        }
+      }
+    },
+    {
+      "name": "11. Query - Orders with Items",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"QUERY\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"orders\",\n  \"limit\": 100\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/database",
+          "host": ["{{base_url}}"],
+          "path": ["database"]
+        }
+      }
+    }
+  ]
+}
+

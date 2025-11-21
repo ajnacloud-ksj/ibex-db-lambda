@@ -22,7 +22,8 @@ from pyiceberg.schema import Schema
 from pyiceberg.types import (
     NestedField, StringType, IntegerType, LongType,
     FloatType, DoubleType, BooleanType, TimestampType,
-    DateType
+    DateType, ListType, MapType, StructType, DecimalType,
+    BinaryType
 )
 from pyiceberg.table import Table
 
@@ -413,11 +414,11 @@ class FullIcebergOperations:
             if request.table_schema and request.table_schema.fields:
                 for field_name, field_def in request.table_schema.fields.items():
                     # field_def is a FieldDefinition object
-                    field_type = field_def.type if hasattr(field_def, 'type') else 'string'
                     required = field_def.required if hasattr(field_def, 'required') else False
-                    iceberg_type = self._map_to_iceberg_type(field_type)
+                    # Pass the entire field_def to support complex types (arrays, maps, structs)
+                    iceberg_type = self._map_to_iceberg_type(field_def)
                     fields.append(
-                        NestedField(field_id, field_name, iceberg_type(), required=required)
+                        NestedField(field_id, field_name, iceberg_type, required=required)
                     )
                     field_id += 1
 
@@ -712,16 +713,46 @@ class FullIcebergOperations:
     def update(self, request: UpdateRequest) -> UpdateResponse:
         """Update records - read from DuckDB, modify, write back with PyIceberg"""
         try:
-            # First query the records to update
-            query_req = QueryRequest(
-                tenant_id=request.tenant_id,
-                namespace=request.namespace,
-                table=request.table,
-                filters=request.filters
+            # First query the records to update - ONLY GET LATEST VERSION
+            # We need to get the latest version of each record to avoid duplicates
+            table_identifier = self._get_table_identifier(
+                request.tenant_id, request.namespace, request.table
             )
-            query_result = self.query(query_req)
-
-            if not query_result.success or not query_result.data or not query_result.data.records:
+            metadata_path = self._get_metadata_path(table_identifier)
+            
+            # Build filter SQL
+            builder = TypeSafeQueryBuilder()
+            filter_sql, params = builder._build_filters(request.filters, "")
+            
+            # Query to get only the LATEST version of each matching record
+            # This uses a window function to rank versions per record_id
+            sql = f"""
+                WITH ranked_records AS (
+                    SELECT *,
+                           ROW_NUMBER() OVER (PARTITION BY _record_id ORDER BY _version DESC) as rn
+                    FROM iceberg_scan('{metadata_path}')
+                    WHERE _tenant_id = '{request.tenant_id}'
+                      AND _deleted IS NOT TRUE
+                      AND ({filter_sql})
+                )
+                SELECT * FROM ranked_records WHERE rn = 1
+            """
+            
+            # Execute query
+            if params:
+                result_df = self.conn.execute(sql, params).fetchdf()
+            else:
+                result_df = self.conn.execute(sql).fetchdf()
+            
+            # Remove the 'rn' column added by ROW_NUMBER
+            if 'rn' in result_df.columns:
+                result_df = result_df.drop('rn', axis=1)
+            
+            # Convert to list of records
+            records = result_df.to_dict(orient='records') if not result_df.empty else []
+            
+            # If no records found, return success with 0 updates
+            if not records:
                 from src.models import UpdateResponseData, ResponseMetadata
                 return UpdateResponse(
                     success=True,
@@ -730,10 +761,10 @@ class FullIcebergOperations:
                     error=None
                 )
 
-            # Update records
+            # Update records - create new versions with updated values
             timestamp = datetime.utcnow()
             updated_records = []
-            for record in query_result.data.records:
+            for record in records:
                 # Ensure proper types before updating
                 record["_version"] = int(record.get("_version", 1)) + 1
                 record["_timestamp"] = timestamp
@@ -750,10 +781,7 @@ class FullIcebergOperations:
             # Convert directly to PyArrow table (bypass Polars to avoid type issues)
             arrow_table = pa.Table.from_pylist(updated_records)
 
-            # Load table and get schema
-            table_identifier = self._get_table_identifier(
-                request.tenant_id, request.namespace, request.table
-            )
+            # Load table and get schema (table_identifier already defined above)
             table = self.catalog.load_table(table_identifier)
 
             # Get Iceberg table schema as PyArrow schema
@@ -1295,19 +1323,96 @@ class FullIcebergOperations:
                 error=ErrorDetail(code="DESCRIBE_ERROR", message=str(e))
             )
 
-    def _map_to_iceberg_type(self, field_type: str):
-        """Map field types to Iceberg types"""
-        type_mapping = {
-            'string': StringType,
-            'integer': IntegerType,
-            'long': LongType,
-            'float': FloatType,
-            'double': DoubleType,
-            'boolean': BooleanType,
-            'date': DateType,
-            'timestamp': TimestampType,
-        }
-        return type_mapping.get(field_type.lower(), StringType)
+    def _map_to_iceberg_type(self, field_def):
+        """
+        Map field definition to Iceberg types (supports primitive and complex types)
+        
+        Args:
+            field_def: Can be either a string (for simple types) or FieldDefinition object (for complex types)
+            
+        Returns:
+            Iceberg type class instance
+        """
+        from src.models import FieldDefinition
+        
+        # Handle simple string type definition (backward compatibility)
+        if isinstance(field_def, str):
+            field_type = field_def.lower()
+            type_mapping = {
+                'string': StringType(),
+                'integer': IntegerType(),
+                'long': LongType(),
+                'float': FloatType(),
+                'double': DoubleType(),
+                'boolean': BooleanType(),
+                'date': DateType(),
+                'timestamp': TimestampType(),
+                'decimal': DecimalType(38, 9),  # Default precision and scale
+                'binary': BinaryType(),
+            }
+            return type_mapping.get(field_type, StringType())
+        
+        # Handle FieldDefinition object (complex types)
+        if isinstance(field_def, FieldDefinition):
+            field_type = field_def.type.lower() if isinstance(field_def.type, str) else field_def.type.value.lower()
+            
+            # Handle array/list type
+            if field_type == 'array':
+                if not field_def.items:
+                    raise ValueError("Array type must specify 'items' field definition")
+                element_type = self._map_to_iceberg_type(field_def.items)
+                # ListType expects element_id, element type, and required flag
+                return ListType(element_id=1, element=element_type, element_required=field_def.items.required if isinstance(field_def.items, FieldDefinition) else False)
+            
+            # Handle map type
+            elif field_type == 'map':
+                if not field_def.key_type or not field_def.value_type:
+                    raise ValueError("Map type must specify both 'key_type' and 'value_type'")
+                key_iceberg_type = self._map_to_iceberg_type(field_def.key_type)
+                value_iceberg_type = self._map_to_iceberg_type(field_def.value_type)
+                # MapType expects key_id, key type, value_id, value type, and value_required flag
+                return MapType(
+                    key_id=1,
+                    key=key_iceberg_type,
+                    value_id=2,
+                    value=value_iceberg_type,
+                    value_required=field_def.value_type.required if isinstance(field_def.value_type, FieldDefinition) else False
+                )
+            
+            # Handle struct/object type
+            elif field_type == 'struct':
+                if not field_def.fields:
+                    raise ValueError("Struct type must specify 'fields' dictionary")
+                # Build nested fields for the struct
+                nested_fields = []
+                field_id = 1
+                for nested_field_name, nested_field_def in field_def.fields.items():
+                    nested_iceberg_type = self._map_to_iceberg_type(nested_field_def)
+                    nested_required = nested_field_def.required if isinstance(nested_field_def, FieldDefinition) else False
+                    nested_fields.append(
+                        NestedField(field_id, nested_field_name, nested_iceberg_type, required=nested_required)
+                    )
+                    field_id += 1
+                return StructType(*nested_fields)
+            
+            # Handle primitive types
+            else:
+                type_mapping = {
+                    'string': StringType(),
+                    'integer': IntegerType(),
+                    'long': LongType(),
+                    'float': FloatType(),
+                    'double': DoubleType(),
+                    'boolean': BooleanType(),
+                    'date': DateType(),
+                    'timestamp': TimestampType(),
+                    'decimal': DecimalType(38, 9),
+                    'binary': BinaryType(),
+                }
+                return type_mapping.get(field_type, StringType())
+        
+        # Fallback to string type
+        return StringType()
 
 
 # Global instance

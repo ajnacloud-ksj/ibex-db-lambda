@@ -1,0 +1,9 @@
+{
+  "httpMethod": "POST",
+  "path": "/database",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": "{\"operation\": \"CREATE_TABLE\", \"tenant_id\": \"demo-tenant\", \"namespace\": \"default\", \"table\": \"orders\", \"schema\": {\"fields\": {\"order_id\": {\"type\": \"long\", \"required\": true}, \"customer_id\": {\"type\": \"long\", \"required\": true}, \"order_date\": {\"type\": \"timestamp\", \"required\": true}, \"total_amount\": {\"type\": \"double\", \"required\": true}, \"items\": {\"type\": \"array\", \"required\": false, \"items\": {\"type\": \"struct\", \"required\": false, \"fields\": {\"product_id\": {\"type\": \"long\", \"required\": true}, \"product_name\": {\"type\": \"string\", \"required\": true}, \"quantity\": {\"type\": \"integer\", \"required\": true}, \"unit_price\": {\"type\": \"double\", \"required\": true}, \"subtotal\": {\"type\": \"double\", \"required\": true}}}}, \"shipping_address\": {\"type\": \"struct\", \"required\": true, \"fields\": {\"street\": {\"type\": \"string\", \"required\": true}, \"city\": {\"type\": \"string\", \"required\": true}, \"state\": {\"type\": \"string\", \"required\": true}, \"zip_code\": {\"type\": \"string\", \"required\": true}}}}}}"
+}
+

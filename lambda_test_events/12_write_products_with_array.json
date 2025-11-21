@@ -1,0 +1,9 @@
+{
+  "httpMethod": "POST",
+  "path": "/database",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": "{\"operation\": \"WRITE\", \"tenant_id\": \"demo-tenant\", \"namespace\": \"default\", \"table\": \"products_with_tags\", \"records\": [{\"product_id\": 1, \"name\": \"Laptop\", \"category\": \"Electronics\", \"price\": 999.99, \"stock\": 50, \"tags\": [\"electronics\", \"computers\", \"bestseller\"]}, {\"product_id\": 2, \"name\": \"Coffee Mug\", \"category\": \"Home\", \"price\": 12.99, \"stock\": 200, \"tags\": [\"home\", \"kitchen\", \"ceramic\"]}]}"
+}
+

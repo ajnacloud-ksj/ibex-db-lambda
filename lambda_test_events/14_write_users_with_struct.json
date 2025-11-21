@@ -1,0 +1,9 @@
+{
+  "httpMethod": "POST",
+  "path": "/database",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": "{\"operation\": \"WRITE\", \"tenant_id\": \"demo-tenant\", \"namespace\": \"default\", \"table\": \"users_with_address\", \"records\": [{\"user_id\": 1, \"name\": \"John Doe\", \"email\": \"john@example.com\", \"address\": {\"street\": \"123 Main St\", \"city\": \"San Francisco\", \"state\": \"CA\", \"zip_code\": \"94105\", \"country\": \"USA\"}}, {\"user_id\": 2, \"name\": \"Jane Smith\", \"email\": \"jane@example.com\", \"address\": {\"street\": \"456 Oak Ave\", \"city\": \"New York\", \"state\": \"NY\", \"zip_code\": \"10001\", \"country\": \"USA\"}}]}"
+}
+

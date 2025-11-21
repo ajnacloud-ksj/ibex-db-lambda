@@ -1,0 +1,9 @@
+{
+  "httpMethod": "POST",
+  "path": "/database",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": "{\"operation\": \"UPDATE\", \"tenant_id\": \"demo-tenant\", \"namespace\": \"default\", \"table\": \"products\", \"updates\": {\"price\": 799.99, \"stock\": 100}, \"filters\": [{\"field\": \"product_id\", \"operator\": \"eq\", \"value\": 1}]}"
+}
+
