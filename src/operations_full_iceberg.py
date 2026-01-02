@@ -275,11 +275,15 @@ class FullIcebergOperations:
         now = time.time()
         
         # Check cache
-        if cache_key in self._metadata_cache:
-            cached_path, cached_time = self._metadata_cache[cache_key]
-            if now - cached_time < self._cache_ttl:
-                # Cache hit
-                return cached_path
+        # Check cache
+        # DISABLED for S3 Express / Immediate Consistency
+        # The user requires read-after-write consistency. Caching metadata location causes 404s
+        # when a new table version is created but the query uses the old cached metadata path.
+        # if cache_key in self._metadata_cache:
+        #     cached_path, cached_time = self._metadata_cache[cache_key]
+        #     if now - cached_time < self._cache_ttl:
+        #         # Cache hit
+        #         return cached_path
         
         # Cache miss - load from catalog (slow Glue call)
         table = self.catalog.load_table(table_identifier)
