@@ -208,11 +208,29 @@ class FullIcebergOperations:
             conn.execute("SET preserve_insertion_order=false;")
             print("  ✓ Performance optimizations enabled")
 
-            # Configure S3
+            # Configure S3 - Handle S3 Express One Zone automatically
             print("Configuring S3 settings...")
             s3_commands = [
                 f"SET s3_region='{s3_config['region']}';"
             ]
+            
+            # Check for S3 Express bucket (ends with --x-s3)
+            bucket_name = s3_config.get('bucket_name', '')
+            if bucket_name.endswith('--x-s3') and 'endpoint' not in s3_config:
+                try:
+                    # Extract Zone ID from bucket name: name--zoneid--x-s3
+                    # Split by '--'
+                    parts = bucket_name.split('--')
+                    if len(parts) >= 3:
+                        zone_id = parts[-2]
+                        region = s3_config['region']
+                        # Construct S3 Express endpoint
+                        # Format: s3express-{zone_id}.{region}.amazonaws.com
+                        endpoint = f"s3express-{zone_id}.{region}.amazonaws.com"
+                        print(f"  ℹ detected S3 Express bucket, using endpoint: {endpoint}")
+                        s3_commands.append(f"SET s3_endpoint='{endpoint}';")
+                except Exception as e:
+                    print(f"Warning: Failed to derive S3 Express endpoint: {e}")
 
             # Add endpoint if present (for MinIO)
             if 'endpoint' in s3_config:
