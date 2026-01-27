@@ -21,6 +21,7 @@ from src.models import (
 )
 # Use full Iceberg implementation with PyIceberg for writes and DuckDB for reads
 from src.operations_full_iceberg import DatabaseOperations
+from src.operations_storage import StorageOperations
 
 
 # ============================================================================
@@ -199,6 +200,17 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         elif operation == OperationType.DROP_NAMESPACE:
             request = DropNamespaceRequest(**request_data)
             result = DatabaseOperations.drop_namespace(request)
+
+        elif operation == OperationType.GET_UPLOAD_URL:
+            # Import models dynamically or use from import above
+            from src.models import GetUploadUrlRequest
+            request = GetUploadUrlRequest(**request_data)
+            result = StorageOperations.get_upload_url(request)
+
+        elif operation == OperationType.GET_DOWNLOAD_URL:
+            from src.models import GetDownloadUrlRequest
+            request = GetDownloadUrlRequest(**request_data)
+            result = StorageOperations.get_download_url(request)
 
         else:
             print(f"✗ Unknown operation: {operation}")

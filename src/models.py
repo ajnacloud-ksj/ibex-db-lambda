@@ -38,6 +38,8 @@ class OperationType(str, Enum):
     COMPACT = "COMPACT"
     DROP_TABLE = "DROP_TABLE"
     DROP_NAMESPACE = "DROP_NAMESPACE"
+    GET_UPLOAD_URL = "GET_UPLOAD_URL"
+    GET_DOWNLOAD_URL = "GET_DOWNLOAD_URL"
 
 class SortOrder(str, Enum):
     """Sort order options"""
@@ -722,6 +724,44 @@ class DropNamespaceResponse(BaseResponse):
     """Drop namespace operation response with standardized structure"""
     
     data: Optional[DropNamespaceResponseData] = Field(None, description="Drop namespace operation results")
+
+# ============================================================================
+# Storage Operations
+# ============================================================================
+
+class GetUploadUrlRequest(BaseModel):
+    """Request for a presigned S3 upload URL"""
+    operation: Literal[OperationType.GET_UPLOAD_URL] = OperationType.GET_UPLOAD_URL
+    tenant_id: str
+    filename: str = Field(..., description="Name of the file to upload")
+    content_type: str = Field(..., description="MIME type of the file")
+    expires_in: int = Field(300, description="URL expiration in seconds")
+
+class GetUploadUrlResponseData(BaseModel):
+    """Data for upload URL response"""
+    upload_url: str = Field(..., description="Presigned PUT URL")
+    file_key: str = Field(..., description="S3 object key to store in DB")
+    expires_in: int = Field(..., description="Seconds until expiration")
+
+class GetUploadUrlResponse(BaseResponse):
+    """Response containing upload URL"""
+    data: Optional[GetUploadUrlResponseData] = Field(None, description="Upload URL details")
+
+class GetDownloadUrlRequest(BaseModel):
+    """Request for a presigned S3 download URL"""
+    operation: Literal[OperationType.GET_DOWNLOAD_URL] = OperationType.GET_DOWNLOAD_URL
+    tenant_id: str
+    file_key: str = Field(..., description="S3 object key")
+    expires_in: int = Field(3600, description="URL expiration in seconds")
+
+class GetDownloadUrlResponseData(BaseModel):
+    """Data for download URL response"""
+    download_url: str = Field(..., description="Presigned GET URL")
+    expires_in: int = Field(..., description="Seconds until expiration")
+
+class GetDownloadUrlResponse(BaseResponse):
+    """Response containing download URL"""
+    data: Optional[GetDownloadUrlResponseData] = Field(None, description="Download URL details")
 
 
 # Update forward references for new models
