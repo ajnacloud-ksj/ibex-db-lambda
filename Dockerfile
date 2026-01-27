@@ -36,8 +36,8 @@ RUN python3 -c "import duckdb; \
 # Ensure correct permissions for Lambda execution
 RUN chmod -R 755 ${LAMBDA_TASK_ROOT}
 
-# Remove custom PYTHONPATH - we want to import 'src' package from root
-# ENV PYTHONPATH="${LAMBDA_TASK_ROOT}/src:${PYTHONPATH}"
+# Set environment variables (can be overridden)
+ENV PYTHONPATH="${LAMBDA_TASK_ROOT}/src:${PYTHONPATH}"
 
 # Lambda handler location (Module path)
-CMD ["src.lambda_handler.lambda_handler"]
+CMD ["lambda_handler.lambda_handler"]
