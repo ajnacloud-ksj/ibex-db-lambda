@@ -1383,7 +1383,17 @@ class FullIcebergOperations:
 
             # Drop table
             # purge=True means delete data files too
-            self.catalog.drop_table(table_identifier, purge=request.purge)
+            # Drop table
+            # NOTE: Some PyIceberg catalog implementations (like Glue) do not support the 'purge' argument yet.
+            # We try with purge first, but if it fails with TypeError, we fallback to default drop.
+            try:
+                self.catalog.drop_table(table_identifier, purge=request.purge)
+            except TypeError as te:
+                if "unexpected keyword argument 'purge'" in str(te):
+                    print("⚠ Catalog does not support 'purge' argument, retrying without it.")
+                    self.catalog.drop_table(table_identifier)
+                else:
+                    raise te
             
             # Invalidate cache
             if table_identifier in self._metadata_cache:
