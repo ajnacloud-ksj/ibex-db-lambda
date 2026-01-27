@@ -2,14 +2,14 @@
 # Using Python 3.12+ for Amazon Linux 2023 with GLIBC 2.34 (required by DuckDB iceberg extension)
 FROM public.ecr.aws/lambda/python:3.12
 
-# Install uv for fast Python package management
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+# Install uv for fast Python package management (via pip to avoid ghcr 403 errors)
+RUN pip install uv
 
 # Copy dependency files
-COPY pyproject.toml README.md ./
+COPY requirements.txt ./
 
-# Install dependencies with uv using pyproject.toml
-RUN uv pip install --system --no-cache -e .
+# Install dependencies (without installing the package itself to avoid namespace conflicts)
+RUN uv pip install --system --no-cache -r requirements.txt
 
 # Install DuckDB Iceberg extensions
 # Pre-install all necessary extensions at build time
@@ -33,11 +33,13 @@ RUN python3 -c "import duckdb; \
     conn.execute('LOAD httpfs'); \
     print('✓ Extensions verified and loaded')"
 
+# Copy application code
+COPY src/ ${LAMBDA_TASK_ROOT}/src/
+COPY config/ ${LAMBDA_TASK_ROOT}/config/
+
 # Ensure correct permissions for Lambda execution
 RUN chmod -R 755 ${LAMBDA_TASK_ROOT}
 
-# Set environment variables (can be overridden)
-ENV PYTHONPATH="${LAMBDA_TASK_ROOT}/src:${PYTHONPATH}"
-
-# Lambda handler location (Module path)
-CMD ["lambda_handler.lambda_handler"]
+# Lambda handler location - src.lambda_handler.lambda_handler
+# /var/task is in PYTHONPATH by default, and we have /var/task/src/lambda_handler.py
+CMD ["src.lambda_handler.lambda_handler"]
