@@ -33,15 +33,11 @@ RUN python3 -c "import duckdb; \
     conn.execute('LOAD httpfs'); \
     print('✓ Extensions verified and loaded')"
 
-# Ensure /tmp is writable for Lambda runtime
-RUN chmod -R 755 /opt/duckdb_extensions
+# Ensure correct permissions for Lambda execution
+RUN chmod -R 755 ${LAMBDA_TASK_ROOT}
 
-# Copy application code
-COPY src/ ${LAMBDA_TASK_ROOT}/src/
-COPY config/ ${LAMBDA_TASK_ROOT}/config/
+# Remove custom PYTHONPATH - we want to import 'src' package from root
+# ENV PYTHONPATH="${LAMBDA_TASK_ROOT}/src:${PYTHONPATH}"
 
-# Set environment variables (can be overridden)
-ENV PYTHONPATH="${LAMBDA_TASK_ROOT}/src:${PYTHONPATH}"
-
-# Lambda handler location
-CMD ["lambda_handler.lambda_handler"]
+# Lambda handler location (Module path)
+CMD ["src.lambda_handler.lambda_handler"]

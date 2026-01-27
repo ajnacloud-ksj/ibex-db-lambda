@@ -16,7 +16,7 @@ phases:
         fi
   build:
     commands:
-     - docker build -t ${PROJECT_NAME} .
+     - docker build --platform linux/arm64 -t ${PROJECT_NAME} .
   post_build:
     commands:
       - echo Pushing the Docker image to ECR...
