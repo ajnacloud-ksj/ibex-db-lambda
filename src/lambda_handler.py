@@ -16,7 +16,8 @@ from src.models import (
     OperationType,
     QueryRequest, WriteRequest, UpdateRequest, DeleteRequest, HardDeleteRequest,
     CompactRequest,
-    CreateTableRequest, ListTablesRequest, DescribeTableRequest
+    CreateTableRequest, ListTablesRequest, DescribeTableRequest,
+    DropTableRequest, DropNamespaceRequest
 )
 # Use full Iceberg implementation with PyIceberg for writes and DuckDB for reads
 from src.operations_full_iceberg import DatabaseOperations
@@ -190,6 +191,14 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         elif operation == OperationType.DESCRIBE_TABLE:
             request = DescribeTableRequest(**request_data)
             result = DatabaseOperations.describe_table(request)
+
+        elif operation == OperationType.DROP_TABLE:
+            request = DropTableRequest(**request_data)
+            result = DatabaseOperations.drop_table(request)
+
+        elif operation == OperationType.DROP_NAMESPACE:
+            request = DropNamespaceRequest(**request_data)
+            result = DatabaseOperations.drop_namespace(request)
 
         else:
             print(f"✗ Unknown operation: {operation}")

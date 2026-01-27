@@ -12,8 +12,12 @@
         "header": [],
         "url": {
           "raw": "{{baseUrl}}/health",
-          "host": ["{{baseUrl}}"],
-          "path": ["health"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "health"
+          ]
         },
         "description": "Verify FastAPI server is running"
       }
@@ -23,7 +27,10 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -31,8 +38,12 @@
         },
         "url": {
           "raw": "{{baseUrl}}/database",
-          "host": ["{{baseUrl}}"],
-          "path": ["database"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "database"
+          ]
         },
         "description": "Create a new users table"
       }
@@ -42,7 +53,10 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -50,8 +64,12 @@
         },
         "url": {
           "raw": "{{baseUrl}}/database",
-          "host": ["{{baseUrl}}"],
-          "path": ["database"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "database"
+          ]
         },
         "description": "Insert 3 users"
       }
@@ -61,7 +79,10 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -69,8 +90,12 @@
         },
         "url": {
           "raw": "{{baseUrl}}/database",
-          "host": ["{{baseUrl}}"],
-          "path": ["database"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "database"
+          ]
         },
         "description": "Query all users"
       }
@@ -80,7 +105,10 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -88,8 +116,12 @@
         },
         "url": {
           "raw": "{{baseUrl}}/database",
-          "host": ["{{baseUrl}}"],
-          "path": ["database"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "database"
+          ]
         },
         "description": "Query users with age filters (new array format)"
       }
@@ -99,7 +131,10 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -107,8 +142,12 @@
         },
         "url": {
           "raw": "{{baseUrl}}/database",
-          "host": ["{{baseUrl}}"],
-          "path": ["database"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "database"
+          ]
         },
         "description": "Count total users (using function instead of op)"
       }
@@ -118,7 +157,10 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -126,8 +168,12 @@
         },
         "url": {
           "raw": "{{baseUrl}}/database",
-          "host": ["{{baseUrl}}"],
-          "path": ["database"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "database"
+          ]
         },
         "description": "Count users aged 30 or older (new format)"
       }
@@ -137,7 +183,10 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -145,8 +194,12 @@
         },
         "url": {
           "raw": "{{baseUrl}}/database",
-          "host": ["{{baseUrl}}"],
-          "path": ["database"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "database"
+          ]
         },
         "description": "Update Alice's age (creates Version 2)"
       }
@@ -156,7 +209,10 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -164,8 +220,12 @@
         },
         "url": {
           "raw": "{{baseUrl}}/database",
-          "host": ["{{baseUrl}}"],
-          "path": ["database"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "database"
+          ]
         },
         "description": "Bulk update: Update email for all users aged 30+"
       }
@@ -175,7 +235,10 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -183,8 +246,12 @@
         },
         "url": {
           "raw": "{{baseUrl}}/database",
-          "host": ["{{baseUrl}}"],
-          "path": ["database"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "database"
+          ]
         },
         "description": "View complete version history for Alice"
       }
@@ -194,7 +261,10 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -202,8 +272,12 @@
         },
         "url": {
           "raw": "{{baseUrl}}/database",
-          "host": ["{{baseUrl}}"],
-          "path": ["database"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "database"
+          ]
         },
         "description": "Get only the latest version of Alice's record"
       }
@@ -213,7 +287,10 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -221,8 +298,12 @@
         },
         "url": {
           "raw": "{{baseUrl}}/database",
-          "host": ["{{baseUrl}}"],
-          "path": ["database"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "database"
+          ]
         },
         "description": "Track how Alice's age changed over time"
       }
@@ -232,7 +313,10 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -240,8 +324,12 @@
         },
         "url": {
           "raw": "{{baseUrl}}/database",
-          "host": ["{{baseUrl}}"],
-          "path": ["database"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "database"
+          ]
         },
         "description": "Count how many versions each user has"
       }
@@ -251,7 +339,10 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -259,8 +350,12 @@
         },
         "url": {
           "raw": "{{baseUrl}}/database",
-          "host": ["{{baseUrl}}"],
-          "path": ["database"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "database"
+          ]
         },
         "description": "Find all changes made today"
       }
@@ -270,7 +365,10 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -278,8 +376,12 @@
         },
         "url": {
           "raw": "{{baseUrl}}/database",
-          "host": ["{{baseUrl}}"],
-          "path": ["database"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "database"
+          ]
         },
         "description": "Query data as it existed at a specific point in time"
       }
@@ -289,7 +391,10 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -297,8 +402,12 @@
         },
         "url": {
           "raw": "{{baseUrl}}/database",
-          "host": ["{{baseUrl}}"],
-          "path": ["database"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "database"
+          ]
         },
         "description": "Soft delete Charlie"
       }
@@ -308,7 +417,10 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -316,8 +428,12 @@
         },
         "url": {
           "raw": "{{baseUrl}}/database",
-          "host": ["{{baseUrl}}"],
-          "path": ["database"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "database"
+          ]
         },
         "description": "Query soft-deleted records (normally hidden)"
       }
@@ -327,7 +443,10 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -335,8 +454,12 @@
         },
         "url": {
           "raw": "{{baseUrl}}/database",
-          "host": ["{{baseUrl}}"],
-          "path": ["database"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "database"
+          ]
         },
         "description": "List all tables"
       }
@@ -346,7 +469,10 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -354,8 +480,12 @@
         },
         "url": {
           "raw": "{{baseUrl}}/database",
-          "host": ["{{baseUrl}}"],
-          "path": ["database"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "database"
+          ]
         },
         "description": "Get table schema and metadata"
       }
@@ -365,7 +495,10 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -373,10 +506,66 @@
         },
         "url": {
           "raw": "{{baseUrl}}/database",
-          "host": ["{{baseUrl}}"],
-          "path": ["database"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "database"
+          ]
         },
         "description": "Compact table files and expire old snapshots"
+      }
+    },
+    {
+      "name": "DROP TABLE",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"DROP_TABLE\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"users\",\n  \"purge\": true\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/database",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "database"
+          ]
+        },
+        "description": "Drop table (purge=true deletes data files)"
+      }
+    },
+    {
+      "name": "DROP NAMESPACE",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"DROP_NAMESPACE\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/database",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "database"
+          ]
+        },
+        "description": "Drop namespace (must be empty)"
       }
     }
   ]

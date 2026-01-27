@@ -38,7 +38,9 @@ from .models import (
     DescribeTableRequest, DescribeTableResponse, ListTablesRequest,
     TableDescription, ListTablesResponse,
     QueryRequest, QueryResponse,
-    ErrorDetail, QueryMetadata
+    ErrorDetail, QueryMetadata,
+    DropTableRequest, DropTableResponse, DropTableResponseData,
+    DropNamespaceRequest, DropNamespaceResponse, DropNamespaceResponseData
 )
 from .query_builder import TypeSafeQueryBuilder
 
@@ -66,8 +68,8 @@ class FullIcebergOperations:
             
             # Initialize metadata cache for query performance
             self._metadata_cache = {}
-            self._cache_ttl = 300  # 5 minutes cache
-            print("✓ Query cache initialized (TTL: 300s)")
+            self._cache_ttl = 5  # 5 seconds cache (fast but safe enough for consistent reads)
+            print(f"✓ Query cache initialized (TTL: {self._cache_ttl}s)")
             
         except Exception as e:
             error_msg = f"FullIcebergOperations initialization failed: {e}"
@@ -227,7 +229,7 @@ class FullIcebergOperations:
                         # Construct S3 Express endpoint
                         # Format: s3express-{zone_id}.{region}.amazonaws.com
                         endpoint = f"s3express-{zone_id}.{region}.amazonaws.com"
-                        print(f"  ℹ detected S3 Express bucket, using endpoint: {endpoint}")
+                        print(f"  ℹ S3 Express Mode: Enabled (Endpoint: {endpoint})")
                         s3_commands.append(f"SET s3_endpoint='{endpoint}';")
                 except Exception as e:
                     print(f"Warning: Failed to derive S3 Express endpoint: {e}")
@@ -274,16 +276,11 @@ class FullIcebergOperations:
         cache_key = table_identifier
         now = time.time()
         
-        # Check cache
-        # Check cache
-        # DISABLED for S3 Express / Immediate Consistency
-        # The user requires read-after-write consistency. Caching metadata location causes 404s
-        # when a new table version is created but the query uses the old cached metadata path.
-        # if cache_key in self._metadata_cache:
-        #     cached_path, cached_time = self._metadata_cache[cache_key]
-        #     if now - cached_time < self._cache_ttl:
-        #         # Cache hit
-        #         return cached_path
+        if cache_key in self._metadata_cache:
+             cached_path, cached_time = self._metadata_cache[cache_key]
+             if now - cached_time < self._cache_ttl:
+                 # Cache hit
+                 return cached_path
         
         # Cache miss - load from catalog (slow Glue call)
         table = self.catalog.load_table(table_identifier)
@@ -533,6 +530,11 @@ class FullIcebergOperations:
 
             print(f"✓ Wrote {len(enriched_records)} records to {table_identifier}")
 
+            # Invalidate metadata cache to ensure immediate consistency for this container
+            if table_identifier in self._metadata_cache:
+                del self._metadata_cache[table_identifier]
+
+
             # Opportunistic compaction check (non-blocking)
             compaction_recommended = False
             small_files_count = None
@@ -638,11 +640,19 @@ class FullIcebergOperations:
             select_clause = self._build_select_clause(request.projection, request.aggregations)
 
             # Build DuckDB query using iceberg_scan with metadata file
-            # Include deleted records if requested, otherwise filter them out
+            # Use CTE to select only the latest version of each record
+            # Then apply filters (including _deleted check) on the result
             deleted_filter = "" if request.include_deleted else "AND _deleted IS NOT TRUE"
+            
             sql = f"""
-                SELECT {select_clause} FROM iceberg_scan('{metadata_path}')
-                WHERE _tenant_id = '{request.tenant_id}'
+                WITH ranked_records AS (
+                    SELECT *,
+                           ROW_NUMBER() OVER (PARTITION BY _record_id ORDER BY _version DESC) as rn
+                    FROM iceberg_scan('{metadata_path}')
+                    WHERE _tenant_id = '{request.tenant_id}'
+                )
+                SELECT {select_clause} FROM ranked_records
+                WHERE rn = 1
                 {deleted_filter}
             """
 
@@ -1169,6 +1179,11 @@ class FullIcebergOperations:
 
             # Refresh table metadata
             table = self.catalog.load_table(table_identifier)
+            
+            # Invalidate cache after compaction rewrite
+            if table_identifier in self._metadata_cache:
+                del self._metadata_cache[table_identifier]
+
 
             # Get new file statistics using scan().plan_files()
             new_scan_tasks = list(table.scan().plan_files())
@@ -1328,7 +1343,6 @@ class FullIcebergOperations:
                 schema={"fields": schema_fields}
             )
 
-            from src.models import DescribeTableResponseData, ResponseMetadata
             return DescribeTableResponse(
                 success=True,
                 data=DescribeTableResponseData(table=table_desc),
@@ -1343,6 +1357,102 @@ class FullIcebergOperations:
                 data=None,
                 metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
                 error=ErrorDetail(code="DESCRIBE_ERROR", message=str(e))
+            )
+
+    def drop_table(self, request: DropTableRequest) -> DropTableResponse:
+        """Drop Iceberg table"""
+        try:
+            table_identifier = self._get_table_identifier(
+                request.tenant_id, request.namespace, request.table
+            )
+            
+            # Check if exists first
+            try:
+                self.catalog.load_table(table_identifier)
+            except:
+                from src.models import DropTableResponseData, ResponseMetadata
+                return DropTableResponse(
+                    success=True,
+                    data=DropTableResponseData(
+                        table_dropped=False,
+                        table_existed=False
+                    ),
+                    metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
+                    error=None
+                )
+
+            # Drop table
+            # purge=True means delete data files too
+            self.catalog.drop_table(table_identifier, purge=request.purge)
+            
+            # Invalidate cache
+            if table_identifier in self._metadata_cache:
+                del self._metadata_cache[table_identifier]
+
+            print(f"✓ Dropped table: {table_identifier} (purge={request.purge})")
+            
+            from src.models import DropTableResponseData, ResponseMetadata
+            return DropTableResponse(
+                success=True,
+                data=DropTableResponseData(
+                    table_dropped=True,
+                    table_existed=True
+                ),
+                metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
+                error=None
+            )
+
+        except Exception as e:
+            from src.models import ResponseMetadata
+            return DropTableResponse(
+                success=False,
+                data=None,
+                metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
+                error=ErrorDetail(code="DROP_TABLE_ERROR", message=str(e))
+            )
+
+    def drop_namespace(self, request: DropNamespaceRequest) -> DropNamespaceResponse:
+        """Drop namespace (database)"""
+        try:
+            namespace = self._get_namespace(request.tenant_id, request.namespace)
+            
+            # Drop namespace
+            # Only works if namespace is empty (no tables)
+            self.catalog.drop_namespace(namespace)
+            
+            print(f"✓ Dropped namespace: {namespace}")
+            
+            from src.models import DropNamespaceResponseData, ResponseMetadata
+            return DropNamespaceResponse(
+                success=True,
+                data=DropNamespaceResponseData(
+                    namespace_dropped=True,
+                    namespace_existed=True
+                ),
+                metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
+                error=None
+            )
+
+        except Exception as e:
+            # Check if it's because it doesn't exist
+            if "not found" in str(e).lower() or "does not exist" in str(e).lower():
+                from src.models import DropNamespaceResponseData, ResponseMetadata
+                return DropNamespaceResponse(
+                    success=True,
+                    data=DropNamespaceResponseData(
+                        namespace_dropped=False,
+                        namespace_existed=False
+                    ),
+                    metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
+                    error=None
+                )
+                
+            from src.models import ResponseMetadata
+            return DropNamespaceResponse(
+                success=False,
+                data=None,
+                metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
+                error=ErrorDetail(code="DROP_NAMESPACE_ERROR", message=str(e))
             )
 
     def _map_to_iceberg_type(self, field_def):
@@ -1516,3 +1626,11 @@ class DatabaseOperations:
     @staticmethod
     def compact(request: CompactRequest) -> CompactResponse:
         return get_iceberg_ops().compact(request)
+
+    @staticmethod
+    def drop_table(request: DropTableRequest) -> DropTableResponse:
+        return get_iceberg_ops().drop_table(request)
+
+    @staticmethod
+    def drop_namespace(request: DropNamespaceRequest) -> DropNamespaceResponse:
+        return get_iceberg_ops().drop_namespace(request)

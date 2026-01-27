@@ -36,6 +36,8 @@ class OperationType(str, Enum):
     INSERT = "INSERT"
     UPSERT = "UPSERT"
     COMPACT = "COMPACT"
+    DROP_TABLE = "DROP_TABLE"
+    DROP_NAMESPACE = "DROP_NAMESPACE"
 
 class SortOrder(str, Enum):
     """Sort order options"""
@@ -676,6 +678,51 @@ class DescribeTableResponse(BaseResponse):
     """Describe table operation response with standardized structure"""
     
     data: Optional[DescribeTableResponseData] = Field(None, description="Describe table operation results")
+
+# ============================================================================
+# Drop Table Operations
+# ============================================================================
+
+class DropTableRequest(BaseModel):
+    """Drop table request"""
+    operation: Literal[OperationType.DROP_TABLE] = OperationType.DROP_TABLE
+    tenant_id: str
+    namespace: str = "default"
+    table: str
+    purge: bool = Field(False, description="Purge data and metadata (not supported by all catalogs)")
+
+class DropTableResponseData(BaseModel):
+    """Data structure for drop table operation results"""
+    
+    table_dropped: bool = Field(..., description="Whether table was dropped")
+    table_existed: bool = Field(True, description="Whether table existed")
+
+class DropTableResponse(BaseResponse):
+    """Drop table operation response with standardized structure"""
+    
+    data: Optional[DropTableResponseData] = Field(None, description="Drop table operation results")
+
+# ============================================================================
+# Drop Namespace Operations
+# ============================================================================
+
+class DropNamespaceRequest(BaseModel):
+    """Drop namespace (database) request"""
+    operation: Literal[OperationType.DROP_NAMESPACE] = OperationType.DROP_NAMESPACE
+    tenant_id: str
+    namespace: str
+
+class DropNamespaceResponseData(BaseModel):
+    """Data structure for drop namespace operation results"""
+    
+    namespace_dropped: bool = Field(..., description="Whether namespace was dropped")
+    namespace_existed: bool = Field(True, description="Whether namespace existed")
+
+class DropNamespaceResponse(BaseResponse):
+    """Drop namespace operation response with standardized structure"""
+    
+    data: Optional[DropNamespaceResponseData] = Field(None, description="Drop namespace operation results")
+
 
 # Update forward references for new models
 FieldDefinition.model_rebuild()

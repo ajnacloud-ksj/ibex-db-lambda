@@ -10,8 +10,15 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"},
-          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{api_key}}",
+            "type": "default"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -19,7 +26,9 @@
         },
         "url": {
           "raw": "{{baseUrl}}",
-          "host": ["{{baseUrl}}"]
+          "host": [
+            "{{baseUrl}}"
+          ]
         },
         "description": "List all tables in namespace"
       }
@@ -29,8 +38,15 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"},
-          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{api_key}}",
+            "type": "default"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -38,7 +54,9 @@
         },
         "url": {
           "raw": "{{baseUrl}}",
-          "host": ["{{baseUrl}}"]
+          "host": [
+            "{{baseUrl}}"
+          ]
         },
         "description": "Create a new products table"
       }
@@ -48,8 +66,15 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"},
-          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{api_key}}",
+            "type": "default"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -57,7 +82,9 @@
         },
         "url": {
           "raw": "{{baseUrl}}",
-          "host": ["{{baseUrl}}"]
+          "host": [
+            "{{baseUrl}}"
+          ]
         },
         "description": "Insert 3 products"
       }
@@ -67,8 +94,15 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"},
-          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{api_key}}",
+            "type": "default"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -76,7 +110,9 @@
         },
         "url": {
           "raw": "{{baseUrl}}",
-          "host": ["{{baseUrl}}"]
+          "host": [
+            "{{baseUrl}}"
+          ]
         },
         "description": "Query all products"
       }
@@ -86,8 +122,15 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"},
-          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{api_key}}",
+            "type": "default"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -95,7 +138,9 @@
         },
         "url": {
           "raw": "{{baseUrl}}",
-          "host": ["{{baseUrl}}"]
+          "host": [
+            "{{baseUrl}}"
+          ]
         },
         "description": "Query products with price filter (new array format)"
       }
@@ -105,8 +150,15 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"},
-          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{api_key}}",
+            "type": "default"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -114,7 +166,9 @@
         },
         "url": {
           "raw": "{{baseUrl}}",
-          "host": ["{{baseUrl}}"]
+          "host": [
+            "{{baseUrl}}"
+          ]
         },
         "description": "Count total products (using function instead of op)"
       }
@@ -124,8 +178,15 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"},
-          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{api_key}}",
+            "type": "default"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -133,7 +194,9 @@
         },
         "url": {
           "raw": "{{baseUrl}}",
-          "host": ["{{baseUrl}}"]
+          "host": [
+            "{{baseUrl}}"
+          ]
         },
         "description": "Count affordable products (price <= 500)"
       }
@@ -143,8 +206,15 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"},
-          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{api_key}}",
+            "type": "default"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -152,7 +222,9 @@
         },
         "url": {
           "raw": "{{baseUrl}}",
-          "host": ["{{baseUrl}}"]
+          "host": [
+            "{{baseUrl}}"
+          ]
         },
         "description": "Count products grouped by category"
       }
@@ -162,8 +234,15 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"},
-          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{api_key}}",
+            "type": "default"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -171,7 +250,9 @@
         },
         "url": {
           "raw": "{{baseUrl}}",
-          "host": ["{{baseUrl}}"]
+          "host": [
+            "{{baseUrl}}"
+          ]
         },
         "description": "Update laptop price (single record)"
       }
@@ -181,8 +262,15 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"},
-          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{api_key}}",
+            "type": "default"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -190,7 +278,9 @@
         },
         "url": {
           "raw": "{{baseUrl}}",
-          "host": ["{{baseUrl}}"]
+          "host": [
+            "{{baseUrl}}"
+          ]
         },
         "description": "Bulk update: Set stock to 1000 for all Electronics"
       }
@@ -200,8 +290,15 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"},
-          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{api_key}}",
+            "type": "default"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -209,7 +306,9 @@
         },
         "url": {
           "raw": "{{baseUrl}}",
-          "host": ["{{baseUrl}}"]
+          "host": [
+            "{{baseUrl}}"
+          ]
         },
         "description": "View complete version history for Laptop product"
       }
@@ -219,8 +318,15 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"},
-          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{api_key}}",
+            "type": "default"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -228,7 +334,9 @@
         },
         "url": {
           "raw": "{{baseUrl}}",
-          "host": ["{{baseUrl}}"]
+          "host": [
+            "{{baseUrl}}"
+          ]
         },
         "description": "Get only the current state of Laptop"
       }
@@ -238,8 +346,15 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"},
-          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{api_key}}",
+            "type": "default"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -247,7 +362,9 @@
         },
         "url": {
           "raw": "{{baseUrl}}",
-          "host": ["{{baseUrl}}"]
+          "host": [
+            "{{baseUrl}}"
+          ]
         },
         "description": "Track how Laptop price changed over time"
       }
@@ -257,8 +374,15 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"},
-          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{api_key}}",
+            "type": "default"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -266,7 +390,9 @@
         },
         "url": {
           "raw": "{{baseUrl}}",
-          "host": ["{{baseUrl}}"]
+          "host": [
+            "{{baseUrl}}"
+          ]
         },
         "description": "Count how many times each product was updated"
       }
@@ -276,8 +402,15 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"},
-          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{api_key}}",
+            "type": "default"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -285,7 +418,9 @@
         },
         "url": {
           "raw": "{{baseUrl}}",
-          "host": ["{{baseUrl}}"]
+          "host": [
+            "{{baseUrl}}"
+          ]
         },
         "description": "Find all product changes made today"
       }
@@ -295,8 +430,15 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"},
-          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{api_key}}",
+            "type": "default"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -304,7 +446,9 @@
         },
         "url": {
           "raw": "{{baseUrl}}",
-          "host": ["{{baseUrl}}"]
+          "host": [
+            "{{baseUrl}}"
+          ]
         },
         "description": "Query products as they existed at specific time"
       }
@@ -314,8 +458,15 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"},
-          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{api_key}}",
+            "type": "default"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -323,7 +474,9 @@
         },
         "url": {
           "raw": "{{baseUrl}}",
-          "host": ["{{baseUrl}}"]
+          "host": [
+            "{{baseUrl}}"
+          ]
         },
         "description": "Soft delete desk"
       }
@@ -333,8 +486,15 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"},
-          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{api_key}}",
+            "type": "default"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -342,7 +502,9 @@
         },
         "url": {
           "raw": "{{baseUrl}}",
-          "host": ["{{baseUrl}}"]
+          "host": [
+            "{{baseUrl}}"
+          ]
         },
         "description": "Query soft-deleted products (normally hidden)"
       }
@@ -352,8 +514,15 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"},
-          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{api_key}}",
+            "type": "default"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -361,7 +530,9 @@
         },
         "url": {
           "raw": "{{baseUrl}}",
-          "host": ["{{baseUrl}}"]
+          "host": [
+            "{{baseUrl}}"
+          ]
         },
         "description": "Get table schema and metadata"
       }
@@ -371,8 +542,15 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"},
-          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{api_key}}",
+            "type": "default"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -380,7 +558,9 @@
         },
         "url": {
           "raw": "{{baseUrl}}",
-          "host": ["{{baseUrl}}"]
+          "host": [
+            "{{baseUrl}}"
+          ]
         },
         "description": "Compact table files and expire old snapshots"
       }
@@ -390,8 +570,15 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"},
-          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{api_key}}",
+            "type": "default"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -399,7 +586,9 @@
         },
         "url": {
           "raw": "{{baseUrl}}",
-          "host": ["{{baseUrl}}"]
+          "host": [
+            "{{baseUrl}}"
+          ]
         },
         "description": "Query existing users table"
       }
@@ -409,8 +598,15 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "Content-Type", "value": "application/json"},
-          {"key": "x-api-key", "value": "{{api_key}}", "type": "default"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{api_key}}",
+            "type": "default"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -418,9 +614,67 @@
         },
         "url": {
           "raw": "{{baseUrl}}",
-          "host": ["{{baseUrl}}"]
+          "host": [
+            "{{baseUrl}}"
+          ]
         },
         "description": "View Alice's complete version history from existing users table"
+      }
+    },
+    {
+      "name": "DROP TABLE",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{api_key}}",
+            "type": "default"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"DROP_TABLE\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"products\",\n  \"purge\": true\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}",
+          "host": [
+            "{{baseUrl}}"
+          ]
+        },
+        "description": "Drop table (purge=true deletes data files)"
+      }
+    },
+    {
+      "name": "DROP NAMESPACE",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{api_key}}",
+            "type": "default"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"DROP_NAMESPACE\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}",
+          "host": [
+            "{{baseUrl}}"
+          ]
+        },
+        "description": "Drop namespace (must be empty)"
       }
     }
   ]
