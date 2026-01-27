@@ -519,11 +519,22 @@ class FullIcebergOperations:
                 pl.col("_deleted_at").cast(pl.Datetime, strict=False)
             ])
 
+            # Get Iceberg table schema first to check for missing columns
+            iceberg_schema = table.schema().as_arrow()
+            
+            # CRITICAL FIX: Ensure all schema columns exist in DataFrame before conversion
+            # Polars drops columns that are missing from input dicts, but PyArrow select() requires them
+            missing_fields = []
+            for field in iceberg_schema:
+                if field.name not in df.columns:
+                    missing_fields.append(pl.lit(None).alias(field.name))
+                    print(f"  Gap-filling missing field: {field.name}")
+            
+            if missing_fields:
+                df = df.with_columns(missing_fields)
+
             # Convert to PyArrow table
             arrow_table = df.to_arrow()
-
-            # Get Iceberg table schema as PyArrow schema
-            iceberg_schema = table.schema().as_arrow()
 
             # Reorder columns to match Iceberg schema field order
             field_names = [field.name for field in iceberg_schema]
