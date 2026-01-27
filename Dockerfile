@@ -44,4 +44,4 @@ COPY config/ ${LAMBDA_TASK_ROOT}/config/
 ENV PYTHONPATH="${LAMBDA_TASK_ROOT}/src:${PYTHONPATH}"
 
 # Lambda handler location
-CMD ["src.lambda_handler.lambda_handler"]
+CMD ["lambda_handler.lambda_handler"]
