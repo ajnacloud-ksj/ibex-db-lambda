@@ -431,17 +431,25 @@ class FullIcebergOperations:
 
             # User-defined fields
             if request.table_schema and request.table_schema.fields:
+                print(f"Processing {len(request.table_schema.fields)} user fields...")
                 for field_name, field_def in request.table_schema.fields.items():
-                    # field_def is a FieldDefinition object
-                    required = field_def.required if hasattr(field_def, 'required') else False
-                    # Pass the entire field_def to support complex types (arrays, maps, structs)
-                    iceberg_type = self._map_to_iceberg_type(field_def)
-                    fields.append(
-                        NestedField(field_id, field_name, iceberg_type, required=required)
-                    )
-                    field_id += 1
+                    try:
+                        # field_def is a FieldDefinition object
+                        required = field_def.required if hasattr(field_def, 'required') else False
+                        # Pass the entire field_def to support complex types (arrays, maps, structs)
+                        iceberg_type = self._map_to_iceberg_type(field_def)
+                        print(f"  Field {field_id}: {field_name} ({iceberg_type}) req={required}")
+                        fields.append(
+                            NestedField(field_id, field_name, iceberg_type, required=required)
+                        )
+                        field_id += 1
+                    except Exception as fe:
+                        print(f"ERROR processing field {field_name}: {fe}")
+                        raise fe
 
             schema = Schema(*fields)
+            print(f"Final Schema constructed with {len(fields)} fields")
+            print(f"Schema: {schema}")
 
             # Create table (location is determined by catalog warehouse config)
             table = self.catalog.create_table(
@@ -1343,6 +1351,7 @@ class FullIcebergOperations:
                 schema={"fields": schema_fields}
             )
 
+            from src.models import DescribeTableResponseData, ResponseMetadata
             return DescribeTableResponse(
                 success=True,
                 data=DescribeTableResponseData(table=table_desc),

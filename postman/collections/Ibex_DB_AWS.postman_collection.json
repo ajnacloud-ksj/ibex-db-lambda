@@ -622,6 +622,87 @@
       }
     },
     {
+      "name": "STORAGE - Get Upload URL",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{api_key}}",
+            "type": "default"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"GET_UPLOAD_URL\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"filename\": \"test_image.jpg\",\n  \"content_type\": \"image/jpeg\",\n  \"expires_in\": 300\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}",
+          "host": [
+            "{{baseUrl}}"
+          ]
+        },
+        "description": "Get presigned S3 URL for uploading a file"
+      }
+    },
+    {
+      "name": "STORAGE - Get Download URL",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{api_key}}",
+            "type": "default"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"GET_DOWNLOAD_URL\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"file_key\": \"uploads/{{tenant_id}}/uuid/test_image.jpg\",\n  \"expires_in\": 3600\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}",
+          "host": [
+            "{{baseUrl}}"
+          ]
+        },
+        "description": "Get presigned S3 URL for downloading a file"
+      }
+    },
+    {
+      "name": "STORAGE - Step 2: Upload File (PUT)",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "image/jpeg",
+            "type": "text",
+            "description": "Must match the content_type from Step 1"
+          }
+        ],
+        "body": {
+          "mode": "file",
+          "file": {}
+        },
+        "url": {
+          "raw": "PASTE_UPLOAD_URL_HERE",
+          "host": [
+            "PASTE_UPLOAD_URL_HERE"
+          ]
+        },
+        "description": "Step 2: Upload the actual file content to the URL received from Step 1. \n\n1. Copy `data.upload_url` from the Step 1 response.\n2. Paste it into the URL field above.\n3. In the 'Body' tab, select 'binary' and choose your file.\n4. Ensure 'Content-Type' header matches what you sent in Step 1."
+      }
+    },
+    {
       "name": "DROP TABLE",
       "request": {
         "method": "POST",
