@@ -6,10 +6,10 @@ FROM public.ecr.aws/lambda/python:3.12
 RUN pip install uv
 
 # Copy dependency files
-COPY requirements.txt ./
+COPY pyproject.toml README.md ./
 
-# Install dependencies (without installing the package itself to avoid namespace conflicts)
-RUN uv pip install --system --no-cache -r requirements.txt
+# Install dependencies from pyproject.toml (depedencies only, not the project itself)
+RUN uv pip install --system --no-cache -r pyproject.toml
 
 # Install DuckDB Iceberg extensions
 # Pre-install all necessary extensions at build time
