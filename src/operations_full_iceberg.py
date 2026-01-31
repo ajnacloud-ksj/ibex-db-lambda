@@ -10,6 +10,7 @@ This provides complete ACID transactions with Apache Iceberg:
 import json
 import hashlib
 import time
+import os
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List, Union
 
@@ -59,22 +60,37 @@ class FullIcebergOperations:
             print("Loading configuration...")
             self.config = get_config()
             print("✓ Configuration loaded")
-            
-            print("Initializing PyIceberg catalog...")
-            self.catalog = self._init_pyiceberg_catalog()
-            
+
+            # Lazy initialize catalog - don't create until first use
+            self.catalog = None
+            print("✓ Catalog will be initialized on first use (lazy loading)")
+
             print("Initializing DuckDB...")
             self.conn = self._init_duckdb()
             
             # Initialize metadata cache for query performance
             self._metadata_cache = {}
-            self._cache_ttl = 5  # 5 seconds cache (fast but safe enough for consistent reads)
-            print(f"✓ Query cache initialized (TTL: {self._cache_ttl}s)")
+            self._cache_ttl = 300  # 5 minutes cache - safe for read-heavy workloads
+
+            # Initialize query result cache for repeated queries
+            self._query_cache = {}
+            self._query_cache_ttl = 60  # 1 minute for query results
+            print(f"✓ Query cache initialized (TTL: {self._cache_ttl}s, Result cache: {self._query_cache_ttl}s)")
+
+            # Initialize last compaction check time (for auto-compaction)
+            self._last_compact_check = None
             
         except Exception as e:
             error_msg = f"FullIcebergOperations initialization failed: {e}"
             print(f"✗ {error_msg}")
             raise RuntimeError(error_msg) from e
+
+    def _get_catalog(self):
+        """Lazy initialize catalog on first use"""
+        if self.catalog is None:
+            print("Lazy-loading PyIceberg catalog on first use...")
+            self.catalog = self._init_pyiceberg_catalog()
+        return self.catalog
 
     def _init_pyiceberg_catalog(self) -> Catalog:
         """
@@ -200,14 +216,17 @@ class FullIcebergOperations:
 
             # Configure DuckDB settings
             print("Configuring DuckDB settings...")
-            conn.execute(f"SET memory_limit='{duckdb_config['memory_limit']}';")
+            # Optimize memory for 3008MB Lambda (leave buffer for Lambda runtime)
+            conn.execute("SET memory_limit='2.5GB';")  # Optimized for 3008MB Lambda
             conn.execute(f"SET threads={duckdb_config['threads']};")
-            
+
             # Performance optimizations
             conn.execute("SET enable_object_cache=true;")
             conn.execute("SET enable_http_metadata_cache=true;")
             conn.execute("SET force_compression='zstd';")
             conn.execute("SET preserve_insertion_order=false;")
+            conn.execute("SET checkpoint_threshold='256MB';")  # Reduce checkpoint frequency
+            conn.execute("SET temp_directory='/tmp';")  # Use local temp directory
             print("  ✓ Performance optimizations enabled")
 
             # Configure S3 - Handle S3 Express One Zone automatically
@@ -283,7 +302,7 @@ class FullIcebergOperations:
                  return cached_path
         
         # Cache miss - load from catalog (slow Glue call)
-        table = self.catalog.load_table(table_identifier)
+        table = self._get_catalog().load_table(table_identifier)
         metadata_path = table.metadata_location
         
         # Update cache
@@ -384,7 +403,7 @@ class FullIcebergOperations:
 
             # Create namespace if it doesn't exist
             try:
-                self.catalog.create_namespace(namespace)
+                self._get_catalog().create_namespace(namespace)
                 print(f"✓ Created namespace: {namespace}")
             except Exception as e:
                 if "already exists" not in str(e).lower():
@@ -392,7 +411,7 @@ class FullIcebergOperations:
 
             # Check if table exists
             try:
-                existing_table = self.catalog.load_table(table_identifier)
+                existing_table = self._get_catalog().load_table(table_identifier)
                 if not request.if_not_exists:
                     from src.models import ResponseMetadata
                     return CreateTableResponse(
@@ -452,7 +471,7 @@ class FullIcebergOperations:
             print(f"Schema: {schema}")
 
             # Create table (location is determined by catalog warehouse config)
-            table = self.catalog.create_table(
+            table = self._get_catalog().create_table(
                 identifier=table_identifier,
                 schema=schema
             )
@@ -486,7 +505,7 @@ class FullIcebergOperations:
             )
 
             # Load Iceberg table
-            table = self.catalog.load_table(table_identifier)
+            table = self._get_catalog().load_table(table_identifier)
 
             # Enrich records with system fields
             timestamp = datetime.utcnow()
@@ -567,7 +586,7 @@ class FullIcebergOperations:
                     check_interval = compaction_config.get('opportunistic_check_interval', 100)
 
                     # Reload table to get updated metadata
-                    table = self.catalog.load_table(table_identifier)
+                    table = self._get_catalog().load_table(table_identifier)
                     snapshot_count = len(list(table.history()))
 
                     # Check if it's time to evaluate compaction
@@ -593,6 +612,15 @@ class FullIcebergOperations:
             except Exception as e:
                 # Don't fail write if compaction check fails
                 print(f"Warning: Compaction check failed: {e}")
+
+            # Auto-compaction check (runs asynchronously, doesn't block response)
+            if self._last_compact_check is not None:
+                time_since_check = time.time() - self._last_compact_check
+                if time_since_check > 3600 and compaction_recommended:  # Check hourly AND if needed
+                    self._trigger_async_compact(request.tenant_id, request.namespace, request.table)
+                    self._last_compact_check = time.time()
+            else:
+                self._last_compact_check = time.time()
 
             from src.models import WriteResponseData, ResponseMetadata
             return WriteResponse(
@@ -621,7 +649,33 @@ class FullIcebergOperations:
         query_start = time.time()
         query_id = str(uuid.uuid4())
         cache_hit = False
-        
+
+        # Create cache key from request parameters for query result caching
+        cache_key_parts = [
+            request.tenant_id,
+            request.namespace,
+            request.table,
+            str(request.filters) if request.filters else "",
+            str(request.projection) if request.projection else "*",
+            str(request.aggregations) if request.aggregations else "",
+            str(request.group_by) if request.group_by else "",
+            str(request.having) if request.having else "",
+            str(request.sort) if request.sort else "",
+            str(request.limit) if request.limit else "",
+            str(request.include_deleted)
+        ]
+        query_cache_key = hashlib.md5(":".join(cache_key_parts).encode()).hexdigest()
+
+        # Check query result cache
+        if query_cache_key in self._query_cache:
+            cached_result, cached_time = self._query_cache[query_cache_key]
+            if time.time() - cached_time < self._query_cache_ttl:
+                # Update metadata to indicate cache hit
+                cached_result['data']['query_metadata']['cache_hit'] = True
+                cached_result['data']['query_metadata']['query_id'] = query_id
+                from src.models import QueryResponse, QueryResponseData, QueryMetadata, ResponseMetadata
+                return QueryResponse(**cached_result)
+
         try:
             table_identifier = self._get_table_identifier(
                 request.tenant_id, request.namespace, request.table
@@ -734,7 +788,7 @@ class FullIcebergOperations:
                     scanned_bytes = None
 
             from src.models import QueryResponseData, ResponseMetadata
-            return QueryResponse(
+            response = QueryResponse(
                 success=True,
                 data=QueryResponseData(
                     records=data,
@@ -751,6 +805,16 @@ class FullIcebergOperations:
                 metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
                 error=None
             )
+
+            # Cache the successful query result
+            self._query_cache[query_cache_key] = (response.dict(), time.time())
+
+            # Simple LRU cache - limit size
+            if len(self._query_cache) > 100:
+                oldest_key = next(iter(self._query_cache))
+                del self._query_cache[oldest_key]
+
+            return response
 
         except Exception as e:
             from src.models import ResponseMetadata
@@ -833,7 +897,7 @@ class FullIcebergOperations:
             arrow_table = pa.Table.from_pylist(updated_records)
 
             # Load table and get schema (table_identifier already defined above)
-            table = self.catalog.load_table(table_identifier)
+            table = self._get_catalog().load_table(table_identifier)
 
             # Get Iceberg table schema as PyArrow schema
             iceberg_schema = table.schema().as_arrow()
@@ -924,7 +988,7 @@ class FullIcebergOperations:
             )
 
             # Load table
-            table = self.catalog.load_table(table_identifier)
+            table = self._get_catalog().load_table(table_identifier)
 
             # First, query to count how many records will be deleted
             metadata_path = table.metadata_location
@@ -974,7 +1038,7 @@ class FullIcebergOperations:
             table.delete(combined_filter)
 
             # Reload table to get updated file count
-            table = self.catalog.load_table(table_identifier)
+            table = self._get_catalog().load_table(table_identifier)
             files_after = len(list(table.scan().plan_files()))
 
             print(f"✓ Hard deleted {records_to_delete} records from {request.table}")
@@ -1002,6 +1066,40 @@ class FullIcebergOperations:
                 metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
                 error=ErrorDetail(code="HARD_DELETE_ERROR", message=str(e))
             )
+
+    def _trigger_async_compact(self, tenant_id: str, namespace: str, table: str):
+        """Trigger compaction asynchronously using Lambda invoke"""
+        import boto3
+        import json
+        import os
+
+        # Only trigger in production (Lambda environment)
+        if 'AWS_LAMBDA_FUNCTION_NAME' not in os.environ:
+            print("Skipping auto-compaction (not in Lambda environment)")
+            return
+
+        lambda_client = boto3.client('lambda')
+
+        # Invoke same Lambda function asynchronously with COMPACT operation
+        try:
+            lambda_client.invoke(
+                FunctionName=os.environ.get('AWS_LAMBDA_FUNCTION_NAME'),
+                InvocationType='Event',  # Async - doesn't wait
+                Payload=json.dumps({
+                    'body': json.dumps({
+                        'operation': 'COMPACT',
+                        'tenant_id': tenant_id,
+                        'namespace': namespace,
+                        'table': table,
+                        'target_file_size_mb': 128,
+                        'expire_snapshots': True,
+                        'snapshot_retention_hours': 0  # Immediate cleanup
+                    })
+                })
+            )
+            print(f"✓ Auto-compaction triggered asynchronously for {table}")
+        except Exception as e:
+            print(f"Auto-compact trigger failed (non-blocking): {e}")
 
     def _build_iceberg_filter_from_array(self, filters: List) -> Any:
         """Convert filters array to PyIceberg filter expression (all ANDed)"""
@@ -1095,7 +1193,7 @@ class FullIcebergOperations:
             )
 
             # Load Iceberg table
-            table = self.catalog.load_table(table_identifier)
+            table = self._get_catalog().load_table(table_identifier)
 
             # Get compaction config using nested keys
             compaction_config = self.config.get('iceberg', 'compaction')
@@ -1197,7 +1295,7 @@ class FullIcebergOperations:
             table.overwrite(arrow_table)
 
             # Refresh table metadata
-            table = self.catalog.load_table(table_identifier)
+            table = self._get_catalog().load_table(table_identifier)
             
             # Invalidate cache after compaction rewrite
             if table_identifier in self._metadata_cache:
@@ -1225,7 +1323,7 @@ class FullIcebergOperations:
                     )
                     
                     # Reload table to get latest metadata
-                    table = self.catalog.load_table(table_identifier)
+                    table = self._get_catalog().load_table(table_identifier)
                     
                     # Get all snapshots
                     all_snapshots = list(table.history())
@@ -1306,7 +1404,7 @@ class FullIcebergOperations:
             namespace = self._get_namespace(request.tenant_id, request.namespace)
 
             # List tables in namespace
-            tables = self.catalog.list_tables(namespace)
+            tables = self._get_catalog().list_tables(namespace)
 
             # Extract table names
             table_names = [table[1] for table in tables]  # tables are (namespace, name) tuples
@@ -1336,7 +1434,7 @@ class FullIcebergOperations:
             )
 
             # Load table
-            table = self.catalog.load_table(table_identifier)
+            table = self._get_catalog().load_table(table_identifier)
 
             # Get schema info
             schema_fields = {}
@@ -1388,7 +1486,7 @@ class FullIcebergOperations:
             
             # Check if exists first
             try:
-                self.catalog.load_table(table_identifier)
+                self._get_catalog().load_table(table_identifier)
             except:
                 from src.models import DropTableResponseData, ResponseMetadata
                 return DropTableResponse(
@@ -1407,11 +1505,11 @@ class FullIcebergOperations:
             # NOTE: Some PyIceberg catalog implementations (like Glue) do not support the 'purge' argument yet.
             # We try with purge first, but if it fails with TypeError, we fallback to default drop.
             try:
-                self.catalog.drop_table(table_identifier, purge=request.purge)
+                self._get_catalog().drop_table(table_identifier, purge=request.purge)
             except TypeError as te:
                 if "unexpected keyword argument 'purge'" in str(te):
                     print("⚠ Catalog does not support 'purge' argument, retrying without it.")
-                    self.catalog.drop_table(table_identifier)
+                    self._get_catalog().drop_table(table_identifier)
                 else:
                     raise te
             
@@ -1448,7 +1546,7 @@ class FullIcebergOperations:
             
             # Drop namespace
             # Only works if namespace is empty (no tables)
-            self.catalog.drop_namespace(namespace)
+            self._get_catalog().drop_namespace(namespace)
             
             print(f"✓ Dropped namespace: {namespace}")
             
