@@ -646,6 +646,8 @@ class FullIcebergOperations:
     def query(self, request: QueryRequest) -> QueryResponse:
         """Query Iceberg table using DuckDB's iceberg_scan with metadata caching"""
         import uuid
+        from src.models import QueryResponse, QueryResponseData, QueryMetadata, ResponseMetadata
+
         query_start = time.time()
         query_id = str(uuid.uuid4())
         cache_hit = False
@@ -673,7 +675,6 @@ class FullIcebergOperations:
                 # Update metadata to indicate cache hit
                 cached_result['data']['query_metadata']['cache_hit'] = True
                 cached_result['data']['query_metadata']['query_id'] = query_id
-                from src.models import QueryResponse, QueryResponseData, QueryMetadata, ResponseMetadata
                 return QueryResponse(**cached_result)
 
         try:
@@ -693,7 +694,6 @@ class FullIcebergOperations:
                 metadata_path = self._get_metadata_path(table_identifier)
             except Exception as e:
                 # Table doesn't exist
-                from src.models import QueryResponseData, ResponseMetadata
                 return QueryResponse(
                     success=True,
                     data=QueryResponseData(
@@ -787,7 +787,6 @@ class FullIcebergOperations:
                 except:
                     scanned_bytes = None
 
-            from src.models import QueryResponseData, ResponseMetadata
             response = QueryResponse(
                 success=True,
                 data=QueryResponseData(
@@ -817,7 +816,6 @@ class FullIcebergOperations:
             return response
 
         except Exception as e:
-            from src.models import ResponseMetadata
             return QueryResponse(
                 success=False,
                 data=None,
