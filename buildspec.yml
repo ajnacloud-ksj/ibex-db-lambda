@@ -6,8 +6,19 @@ phases:
       - echo Logging in to Amazon ECR...
       - echo ${AWS_REGION} ${AWS_ACCOUNT_ID} ${PROJECT_NAME} ${TAG_NAME}
       - aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
-      - echo "Installing QEMU for ARM64 build support..."
-      - docker run --privileged --rm tonistiigi/binfmt --install all
+      - echo "Setting up ARM64 build support..."
+      - |
+        # Check if we need QEMU (only if building on x86_64 for ARM64)
+        ARCH=$(uname -m)
+        if [ "$ARCH" = "x86_64" ]; then
+          echo "Installing QEMU for cross-platform ARM64 build..."
+          # Try ECR Public first, fallback to direct installation
+          docker run --privileged --rm public.ecr.aws/eks-distro-build-tooling/binfmt-misc:qemu-v6.1.0 --install all || \
+          (echo "Using alternative QEMU installation..." && \
+           apt-get update && apt-get install -y qemu-user-static binfmt-support)
+        else
+          echo "Native ARM64 environment detected, skipping QEMU installation"
+        fi
   pre_build:
     commands:
       - echo Building the Docker image...
