@@ -192,7 +192,7 @@ class FullIcebergOperations:
             elif catalog_type == 'glue':
                 # Production: AWS Glue Catalog (import only when needed)
                 try:
-                    from pyiceberg.catalog.glue import GlueCatalog
+                    from pyiceberg.catalog.glue import GlueCatalog  # Glue import happens here only when needed
 
                     catalog_params = {
                         "region_name": catalog_config['region'],
@@ -1655,15 +1655,32 @@ class FullIcebergOperations:
     def _map_to_iceberg_type(self, field_def):
         """
         Map field definition to Iceberg types (supports primitive and complex types)
-        
+
         Args:
             field_def: Can be either a string (for simple types) or FieldDefinition object (for complex types)
-            
+
         Returns:
             Iceberg type class instance
         """
         from src.models import FieldDefinition
-        
+
+        # Get Iceberg types (lazy loaded)
+        types = _get_pyiceberg_types()
+        StringType = types['StringType']
+        IntegerType = types['IntegerType']
+        LongType = types['LongType']
+        FloatType = types['FloatType']
+        DoubleType = types['DoubleType']
+        BooleanType = types['BooleanType']
+        DateType = types['DateType']
+        TimestampType = types['TimestampType']
+        DecimalType = types['DecimalType']
+        BinaryType = types['BinaryType']
+        ListType = types['ListType']
+        MapType = types['MapType']
+        StructType = types['StructType']
+        NestedField = types['NestedField']
+
         # Handle simple string type definition (backward compatibility)
         if isinstance(field_def, str):
             field_type = field_def.lower()
