@@ -70,12 +70,21 @@ class FullIcebergOperations:
             
             # Initialize metadata cache for query performance
             self._metadata_cache = {}
-            self._cache_ttl = 300  # 5 minutes cache - safe for read-heavy workloads
+            self._cache_ttl = 3600  # 1 hour cache - dramatically reduces Glue API costs
 
             # Initialize query result cache for repeated queries
             self._query_cache = {}
-            self._query_cache_ttl = 60  # 1 minute for query results
+            self._query_cache_ttl = 600  # 10 minutes for query results - reduces S3 costs
             print(f"✓ Query cache initialized (TTL: {self._cache_ttl}s, Result cache: {self._query_cache_ttl}s)")
+
+            # Cost optimization: Track cache effectiveness
+            self._cache_stats = {
+                'metadata_hits': 0,
+                'metadata_misses': 0,
+                'query_hits': 0,
+                'query_misses': 0,
+                'estimated_savings': 0.0
+            }
 
             # Initialize last compaction check time (for auto-compaction)
             self._last_compact_check = None
@@ -282,32 +291,42 @@ class FullIcebergOperations:
     def _get_metadata_path(self, table_identifier: str) -> str:
         """
         Get metadata path with caching to avoid repeated Glue calls
-        
+
         Args:
             table_identifier: Full table identifier
-            
+
         Returns:
             Metadata location path
-            
+
         Raises:
             Exception: If table doesn't exist or can't be loaded
         """
         cache_key = table_identifier
         now = time.time()
-        
+
         if cache_key in self._metadata_cache:
              cached_path, cached_time = self._metadata_cache[cache_key]
              if now - cached_time < self._cache_ttl:
-                 # Cache hit
+                 # Cache hit - saved a Glue API call!
+                 self._cache_stats['metadata_hits'] += 1
+                 # Glue API: $1 per million requests
+                 self._cache_stats['estimated_savings'] += 0.000001
                  return cached_path
-        
-        # Cache miss - load from catalog (slow Glue call)
+
+        # Cache miss - load from catalog (expensive Glue call)
+        self._cache_stats['metadata_misses'] += 1
         table = self._get_catalog().load_table(table_identifier)
         metadata_path = table.metadata_location
-        
+
         # Update cache
         self._metadata_cache[cache_key] = (metadata_path, now)
-        
+
+        # Log cache effectiveness periodically
+        total_requests = self._cache_stats['metadata_hits'] + self._cache_stats['metadata_misses']
+        if total_requests % 100 == 0:
+            hit_rate = (self._cache_stats['metadata_hits'] / total_requests) * 100
+            print(f"💰 Cache stats: {hit_rate:.1f}% hit rate, ~${self._cache_stats['estimated_savings']:.4f} saved")
+
         return metadata_path
 
     def _get_namespace(self, tenant_id: str, namespace: str) -> str:
@@ -672,10 +691,20 @@ class FullIcebergOperations:
         if query_cache_key in self._query_cache:
             cached_result, cached_time = self._query_cache[query_cache_key]
             if time.time() - cached_time < self._query_cache_ttl:
+                # Cache hit - saved S3 reads!
+                self._cache_stats['query_hits'] += 1
+                # S3 GET: $0.0004 per 1000 requests, Data transfer: ~$0.09/GB
+                # Estimate ~10 S3 GETs and 100MB per query
+                self._cache_stats['estimated_savings'] += (10 * 0.0004 / 1000) + (0.1 * 0.09)
+
                 # Update metadata to indicate cache hit
                 cached_result['data']['query_metadata']['cache_hit'] = True
                 cached_result['data']['query_metadata']['query_id'] = query_id
+                cached_result['data']['query_metadata']['cost_saved'] = f"${self._cache_stats['estimated_savings']:.4f}"
                 return QueryResponse(**cached_result)
+
+        # Cache miss
+        self._cache_stats['query_misses'] += 1
 
         try:
             table_identifier = self._get_table_identifier(
