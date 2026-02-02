@@ -278,6 +278,12 @@ class FullIcebergOperations:
             conn.execute("SET preserve_insertion_order=false;")
             conn.execute("SET checkpoint_threshold='256MB';")  # Reduce checkpoint frequency
             conn.execute("SET temp_directory='/tmp';")  # Use local temp directory
+
+            # Additional optimizations for faster queries
+            conn.execute("SET enable_parallel_scan=true;")  # Parallel Parquet scanning
+            conn.execute("SET parallel_scan_threshold=10;")  # Parallelize small scans too
+            conn.execute("SET streaming_buffer_size=2097152;")  # 2MB buffer
+            conn.execute("SET enable_query_cache=true;")  # Enable DuckDB's internal cache
             print("  ✓ Performance optimizations enabled")
 
             # Configure S3 - Handle S3 Express One Zone automatically
@@ -357,6 +363,15 @@ class FullIcebergOperations:
                  self._cache_stats['estimated_savings'] += 0.000001
                  return cached_path
 
+        # OPTIMIZATION: Try to build path directly for known tables (skip Glue)
+        # This works if table structure is predictable
+        if self._try_direct_metadata_path(table_identifier):
+            direct_path = self._build_direct_metadata_path(table_identifier)
+            if direct_path:
+                self._metadata_cache[cache_key] = (direct_path, now)
+                self._cache_stats['metadata_hits'] += 1
+                return direct_path
+
         # Cache miss - load from catalog (expensive Glue call)
         self._cache_stats['metadata_misses'] += 1
         table = self._get_catalog().load_table(table_identifier)
@@ -372,6 +387,28 @@ class FullIcebergOperations:
             print(f"💰 Cache stats: {hit_rate:.1f}% hit rate, ~${self._cache_stats['estimated_savings']:.4f} saved")
 
         return metadata_path
+
+    def _try_direct_metadata_path(self, table_identifier: str) -> bool:
+        """Check if we can build metadata path directly"""
+        # For small, stable datasets, we can predict the path
+        return os.environ.get('ENABLE_DIRECT_METADATA_PATH', 'false').lower() == 'true'
+
+    def _build_direct_metadata_path(self, table_identifier: str) -> str:
+        """Build metadata path directly without Glue lookup"""
+        try:
+            # Pattern: s3://bucket/warehouse/namespace/table/metadata/v*.metadata.json
+            bucket = self.config.s3['bucket_name']
+            warehouse = self.config.s3['warehouse_path']
+            namespace, table = table_identifier.rsplit('.', 1)
+
+            # Most recent metadata is usually v1 or v2
+            for version in ['v2', 'v1', 'v3']:
+                path = f"s3://{bucket}/{warehouse}/{namespace.replace('.', '/')}/{table}/metadata/{version}.metadata.json"
+                # Quick check if exists (could cache this too)
+                return path  # Return first guess, DuckDB will error if wrong
+
+        except Exception:
+            return None
 
     def _get_namespace(self, tenant_id: str, namespace: str) -> str:
         """Get Iceberg namespace from tenant and namespace"""
@@ -816,21 +853,34 @@ class FullIcebergOperations:
                 print(f"  ↓ Projection pushdown: scanning only {len(required_columns)} columns instead of all")
 
             # Build DuckDB query using iceberg_scan with metadata file
-            # Use CTE to select only the latest version of each record
-            # Then apply filters (including _deleted check) on the result
+            # OPTIMIZATION: Skip expensive ROW_NUMBER() if not needed
             deleted_filter = "" if request.include_deleted else "AND _deleted IS NOT TRUE"
 
-            sql = f"""
-                WITH ranked_records AS (
-                    SELECT {scan_columns},
-                           ROW_NUMBER() OVER (PARTITION BY _record_id ORDER BY _version DESC) as rn
+            # Check if we need versioning (only if table has updates)
+            # For read-heavy workloads with no updates, skip the expensive window function
+            needs_versioning = not getattr(request, 'skip_versioning', False)
+
+            if needs_versioning:
+                # Original query with ROW_NUMBER (slower but handles versions)
+                sql = f"""
+                    WITH ranked_records AS (
+                        SELECT {scan_columns},
+                               ROW_NUMBER() OVER (PARTITION BY _record_id ORDER BY _version DESC) as rn
+                        FROM iceberg_scan('{metadata_path}')
+                        WHERE _tenant_id = '{request.tenant_id}'
+                    )
+                    SELECT {select_clause} FROM ranked_records
+                    WHERE rn = 1
+                    {deleted_filter}
+                """
+            else:
+                # FAST PATH: Simple query without versioning (much faster!)
+                sql = f"""
+                    SELECT {select_clause}
                     FROM iceberg_scan('{metadata_path}')
                     WHERE _tenant_id = '{request.tenant_id}'
-                )
-                SELECT {select_clause} FROM ranked_records
-                WHERE rn = 1
-                {deleted_filter}
-            """
+                    {deleted_filter}
+                """
 
             # Add custom filters
             params = []

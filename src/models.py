@@ -216,6 +216,7 @@ class QueryRequest(BaseModel):
     timeout_ms: Optional[int] = Field(30000, gt=0, description="Query timeout in milliseconds")
     explain: Optional[bool] = Field(False, description="Return query plan instead of results")
     include_deleted: Optional[bool] = Field(False, description="Include soft-deleted records in results")
+    skip_versioning: Optional[bool] = Field(False, description="Skip version checks for read-only tables (faster)")
 
     # Time travel
     as_of: Optional[datetime] = Field(None, description="Query data as of timestamp")
