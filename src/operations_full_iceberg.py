@@ -91,6 +91,10 @@ from .query_builder import TypeSafeQueryBuilder
 class FullIcebergOperations:
     """Full Iceberg operations using PyIceberg for writes and DuckDB for reads"""
 
+    # Class-level connection pool (survives across warm invocations)
+    _shared_duckdb_conn = None
+    _conn_created_at = 0
+
     def __init__(self):
         """
         Initialize PyIceberg catalog and DuckDB connection
@@ -391,25 +395,13 @@ class FullIcebergOperations:
 
     def _try_direct_metadata_path(self, table_identifier: str) -> bool:
         """Check if we can build metadata path directly"""
-        # For small, stable datasets, we can predict the path
+        # Only for optional optimization, not bypassing catalog
         return os.environ.get('ENABLE_DIRECT_METADATA_PATH', 'false').lower() == 'true'
 
     def _build_direct_metadata_path(self, table_identifier: str) -> str:
         """Build metadata path directly without Glue lookup"""
-        try:
-            # Pattern: s3://bucket/warehouse/namespace/table/metadata/v*.metadata.json
-            bucket = self.config.s3['bucket_name']
-            warehouse = self.config.s3['warehouse_path']
-            namespace, table = table_identifier.rsplit('.', 1)
-
-            # Most recent metadata is usually v1 or v2
-            for version in ['v2', 'v1', 'v3']:
-                path = f"s3://{bucket}/{warehouse}/{namespace.replace('.', '/')}/{table}/metadata/{version}.metadata.json"
-                # Quick check if exists (could cache this too)
-                return path  # Return first guess, DuckDB will error if wrong
-
-        except Exception:
-            return None
+        # This is just an optimization attempt, not a bypass
+        return None  # Always use catalog for general purpose engine
 
     def _get_namespace(self, tenant_id: str, namespace: str) -> str:
         """Get Iceberg namespace from tenant and namespace"""
@@ -859,7 +851,9 @@ class FullIcebergOperations:
 
             # Check if we need versioning (only if table has updates)
             # For read-heavy workloads with no updates, skip the expensive window function
-            needs_versioning = not getattr(request, 'skip_versioning', False)
+            # Also check environment variable for default behavior
+            skip_versioning_default = os.environ.get('SKIP_VERSIONING_DEFAULT', 'false').lower() == 'true'
+            needs_versioning = not (getattr(request, 'skip_versioning', skip_versioning_default))
 
             if needs_versioning:
                 # Original query with ROW_NUMBER (slower but handles versions)
