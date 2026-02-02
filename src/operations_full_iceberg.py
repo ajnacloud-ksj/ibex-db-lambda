@@ -267,9 +267,16 @@ class FullIcebergOperations:
 
             # Configure DuckDB settings
             print("Configuring DuckDB settings...")
-            # Optimize memory for 3008MB Lambda (leave buffer for Lambda runtime)
-            conn.execute("SET memory_limit='2.5GB';")  # Optimized for 3008MB Lambda
-            conn.execute(f"SET threads={duckdb_config['threads']};")
+            # Auto-detect Lambda memory and optimize accordingly
+            lambda_memory_mb = int(os.environ.get('AWS_LAMBDA_FUNCTION_MEMORY_SIZE', '3008'))
+            if lambda_memory_mb >= 5120:
+                # 5GB Lambda - use 4.5GB for DuckDB
+                conn.execute("SET memory_limit='4.5GB';")
+                conn.execute("SET threads=3;")  # 3 vCPUs at 5GB
+            else:
+                # 3GB Lambda - use 2.5GB for DuckDB
+                conn.execute("SET memory_limit='2.5GB';")
+                conn.execute("SET threads=2;")  # 2 vCPUs at 3GB
 
             # Performance optimizations
             conn.execute("SET enable_object_cache=true;")
@@ -278,12 +285,6 @@ class FullIcebergOperations:
             conn.execute("SET preserve_insertion_order=false;")
             conn.execute("SET checkpoint_threshold='256MB';")  # Reduce checkpoint frequency
             conn.execute("SET temp_directory='/tmp';")  # Use local temp directory
-
-            # Additional optimizations for faster queries
-            conn.execute("SET enable_parallel_scan=true;")  # Parallel Parquet scanning
-            conn.execute("SET parallel_scan_threshold=10;")  # Parallelize small scans too
-            conn.execute("SET streaming_buffer_size=2097152;")  # 2MB buffer
-            conn.execute("SET enable_query_cache=true;")  # Enable DuckDB's internal cache
             print("  ✓ Performance optimizations enabled")
 
             # Configure S3 - Handle S3 Express One Zone automatically
