@@ -1,0 +1,10 @@
+{
+  "httpMethod": "POST",
+  "path": "/database",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": "{\"operation\": \"QUERY\", \"tenant_id\": \"demo-tenant\", \"namespace\": \"default\", \"table\": \"products_with_tags\", \"filters\": [{\"field\": \"tags\", \"operator\": \"like\", \"value\": \"%electronics%\"}], \"limit\": 10}"
+}
+
+

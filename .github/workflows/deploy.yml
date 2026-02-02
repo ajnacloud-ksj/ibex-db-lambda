@@ -1,0 +1,29 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-push:
+    uses: ajnacloud-ksj/ajna-github-workflows/.github/workflows/reusable-docker-ecr.yml@main
+    with:
+      aws-region: ap-south-1
+      ecr-repository: ibex-db-lambda
+      role-to-assume: arn:aws:iam::808527335982:role/GitHubActions-Deploy-Role
+      image-tag: ${{ github.sha }}
+      platform: linux/arm64
+
+  deploy-lambda:
+    needs: build-and-push
+    uses: ajnacloud-ksj/ajna-github-workflows/.github/workflows/reusable-lambda-deploy.yml@main
+    with:
+      aws-region: ap-south-1
+      lambda-function-name: ibex-db-lambda
+      image-uri: ${{ needs.build-and-push.outputs.image-uri }}
+      role-to-assume: arn:aws:iam::808527335982:role/GitHubActions-Deploy-Role

@@ -1,0 +1,10 @@
+{
+  "httpMethod": "POST",
+  "path": "/database",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": "{\"operation\": \"UPDATE\", \"tenant_id\": \"demo-tenant\", \"namespace\": \"default\", \"table\": \"users_with_address\", \"filters\": [{\"field\": \"user_id\", \"operator\": \"eq\", \"value\": 1}], \"updates\": {\"address\": {\"street\": \"456 New Avenue\", \"city\": \"Los Angeles\", \"state\": \"CA\", \"zip_code\": \"90001\", \"country\": \"USA\"}}}"
+}
+
+

@@ -1,0 +1,10 @@
+{
+  "httpMethod": "POST",
+  "path": "/database",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": "{\"operation\": \"QUERY\", \"tenant_id\": \"demo-tenant\", \"namespace\": \"default\", \"table\": \"users_with_address\", \"projection\": [\"name\", \"email\", \"address.city\", \"address.state\"], \"filters\": [{\"field\": \"address.state\", \"operator\": \"eq\", \"value\": \"CA\"}]}"
+}
+
+
