@@ -86,9 +86,6 @@ class FullIcebergOperations:
                 'estimated_savings': 0.0
             }
 
-            # Initialize last compaction check time (for auto-compaction)
-            self._last_compact_check = None
-            
         except Exception as e:
             error_msg = f"FullIcebergOperations initialization failed: {e}"
             print(f"✗ {error_msg}")
@@ -632,14 +629,9 @@ class FullIcebergOperations:
                 # Don't fail write if compaction check fails
                 print(f"Warning: Compaction check failed: {e}")
 
-            # Auto-compaction check (runs asynchronously, doesn't block response)
-            if self._last_compact_check is not None:
-                time_since_check = time.time() - self._last_compact_check
-                if time_since_check > 3600 and compaction_recommended:  # Check hourly AND if needed
-                    self._trigger_async_compact(request.tenant_id, request.namespace, request.table)
-                    self._last_compact_check = time.time()
-            else:
-                self._last_compact_check = time.time()
+            # Log compaction recommendation (but don't auto-trigger)
+            if compaction_recommended:
+                print(f"💡 Consider running COMPACT operation: {small_files_count} small files detected")
 
             from src.models import WriteResponseData, ResponseMetadata
             return WriteResponse(
@@ -1120,39 +1112,6 @@ class FullIcebergOperations:
                 error=ErrorDetail(code="HARD_DELETE_ERROR", message=str(e))
             )
 
-    def _trigger_async_compact(self, tenant_id: str, namespace: str, table: str):
-        """Trigger compaction asynchronously using Lambda invoke"""
-        import boto3
-        import json
-        import os
-
-        # Only trigger in production (Lambda environment)
-        if 'AWS_LAMBDA_FUNCTION_NAME' not in os.environ:
-            print("Skipping auto-compaction (not in Lambda environment)")
-            return
-
-        lambda_client = boto3.client('lambda')
-
-        # Invoke same Lambda function asynchronously with COMPACT operation
-        try:
-            lambda_client.invoke(
-                FunctionName=os.environ.get('AWS_LAMBDA_FUNCTION_NAME'),
-                InvocationType='Event',  # Async - doesn't wait
-                Payload=json.dumps({
-                    'body': json.dumps({
-                        'operation': 'COMPACT',
-                        'tenant_id': tenant_id,
-                        'namespace': namespace,
-                        'table': table,
-                        'target_file_size_mb': 128,
-                        'expire_snapshots': True,
-                        'snapshot_retention_hours': 0  # Immediate cleanup
-                    })
-                })
-            )
-            print(f"✓ Auto-compaction triggered asynchronously for {table}")
-        except Exception as e:
-            print(f"Auto-compact trigger failed (non-blocking): {e}")
 
     def _build_iceberg_filter_from_array(self, filters: List) -> Any:
         """Convert filters array to PyIceberg filter expression (all ANDed)"""
