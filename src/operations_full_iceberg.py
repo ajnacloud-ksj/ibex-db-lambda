@@ -712,14 +712,40 @@ class FullIcebergOperations:
             # Build SELECT clause based on projection and aggregations
             select_clause = self._build_select_clause(request.projection, request.aggregations)
 
+            # Optimize column scanning - only read required columns from Parquet files
+            # This reduces S3 data transfer significantly
+            scan_columns = "*"  # Default to all columns
+            if request.projection and request.projection != ["*"] and not request.aggregations:
+                # Build list of columns to scan from storage
+                # Always include system columns needed for filtering
+                required_columns = set(request.projection)
+                required_columns.update(['_tenant_id', '_record_id', '_version', '_deleted'])
+
+                # Add any columns used in filters
+                if request.filters:
+                    for filter_item in request.filters:
+                        required_columns.add(filter_item.field)
+
+                # Add columns used in sorting
+                if request.sort:
+                    for sort_field in request.sort:
+                        required_columns.add(sort_field.field)
+
+                # Add columns used in group by
+                if request.group_by:
+                    required_columns.update(request.group_by)
+
+                scan_columns = ", ".join(required_columns)
+                print(f"  ↓ Projection pushdown: scanning only {len(required_columns)} columns instead of all")
+
             # Build DuckDB query using iceberg_scan with metadata file
             # Use CTE to select only the latest version of each record
             # Then apply filters (including _deleted check) on the result
             deleted_filter = "" if request.include_deleted else "AND _deleted IS NOT TRUE"
-            
+
             sql = f"""
                 WITH ranked_records AS (
-                    SELECT *,
+                    SELECT {scan_columns},
                            ROW_NUMBER() OVER (PARTITION BY _record_id ORDER BY _version DESC) as rn
                     FROM iceberg_scan('{metadata_path}')
                     WHERE _tenant_id = '{request.tenant_id}'
