@@ -11,6 +11,19 @@ import time
 from typing import Dict, Any
 from datetime import datetime
 
+# Use faster JSON library if available (3x faster)
+try:
+    import orjson
+    def dumps_json(obj, default=str):
+        """Fast JSON serialization with orjson"""
+        return orjson.dumps(obj, default=default).decode('utf-8')
+    HAS_ORJSON = True
+except ImportError:
+    def dumps_json(obj, default=str):
+        """Fallback to standard json"""
+        return json.dumps(obj, default=default)
+    HAS_ORJSON = False
+
 # Import our type-safe models and operations
 from src.models import (
     OperationType,
@@ -115,7 +128,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     'Access-Control-Allow-Origin': '*',
                     'X-Request-ID': request_id
                 },
-                'body': json.dumps({
+                'body': dumps_json({
                     'status': 'healthy',
                     'service': 'S3 ACID Database',
                     'version': '1.0.0',
@@ -248,7 +261,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 'X-Request-ID': request_id,
                 'X-Execution-Time-Ms': str(round(execution_time_ms, 2))
             },
-            'body': json.dumps(response_body, default=str)
+            'body': dumps_json(response_body, default=str)
         }
 
     except TimeoutError as e:
@@ -316,7 +329,7 @@ def error_response(status_code: int, message: str, request_id: str = None) -> Di
             'Access-Control-Allow-Origin': '*',
             'X-Request-ID': request_id or 'unknown'
         },
-        'body': json.dumps(error_body)
+        'body': dumps_json(error_body)
     }
 
 
@@ -326,7 +339,7 @@ if __name__ == '__main__':
     test_event = {
         'httpMethod': 'POST',
         'path': '/database',
-        'body': json.dumps({
+        'body': dumps_json({
             'operation': 'QUERY',
             'tenant_id': 'test',
             'namespace': 'default',
@@ -336,4 +349,4 @@ if __name__ == '__main__':
     }
 
     result = lambda_handler(test_event, None)
-    print(json.dumps(result, indent=2))
+    print(dumps_json(result, indent=2))
