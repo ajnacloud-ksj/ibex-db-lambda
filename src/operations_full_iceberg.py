@@ -1234,6 +1234,14 @@ class FullIcebergOperations:
             # Append to Iceberg table
             table.append(arrow_table)
 
+            # CRITICAL FIX: Invalidate metadata cache to ensure immediate consistency
+            # Without this, queries will use stale cached metadata and won't see the updates
+            if table_identifier in self._metadata_cache:
+                del self._metadata_cache[table_identifier]
+                print(f"✓ Invalidated cache for {table_identifier} after UPDATE")
+
+            print(f"✓ Updated {len(updated_records)} records in {table_identifier}")
+
             from src.models import UpdateResponseData, ResponseMetadata
             return UpdateResponse(
                 success=True,
