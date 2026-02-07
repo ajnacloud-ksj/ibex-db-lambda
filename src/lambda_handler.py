@@ -27,7 +27,7 @@ except ImportError:
 # Import our type-safe models and operations
 from src.models import (
     OperationType,
-    QueryRequest, WriteRequest, UpdateRequest, DeleteRequest, HardDeleteRequest,
+    QueryRequest, WriteRequest, UpdateRequest, DeleteRequest, HardDeleteRequest, UpsertRequest,
     CompactRequest,
     CreateTableRequest, ListTablesRequest, DescribeTableRequest,
     DropTableRequest, DropNamespaceRequest
@@ -189,6 +189,10 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         elif operation == OperationType.HARD_DELETE:
             request = HardDeleteRequest(**request_data)
             result = DatabaseOperations.hard_delete(request)
+
+        elif operation == OperationType.UPSERT:
+            request = UpsertRequest(**request_data)
+            result = DatabaseOperations.upsert(request)
 
         elif operation == OperationType.COMPACT:
             request = CompactRequest(**request_data)

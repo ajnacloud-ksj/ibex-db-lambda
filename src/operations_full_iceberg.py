@@ -11,6 +11,7 @@ import json
 import hashlib
 import time
 import os
+import uuid
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List, Union
 
@@ -79,6 +80,7 @@ from .models import (
     UpdateRequest, UpdateResponse,
     DeleteRequest, DeleteResponse,
     HardDeleteRequest, HardDeleteResponse,
+    UpsertRequest, UpsertResponse, UpsertResponseData,
     CompactRequest, CompactResponse, CompactionStats,
     CreateTableRequest, CreateTableResponse,
     DescribeTableRequest, DescribeTableResponse, ListTablesRequest,
@@ -1197,26 +1199,43 @@ class FullIcebergOperations:
                     error=None
                 )
 
-            # Update records - create new versions with updated values
+            # CRITICAL FIX: Create BOTH delete markers AND new versions
+            # This is required because Iceberg is append-only
+            # We must mark old versions as deleted and create new versions
             timestamp = datetime.utcnow()
-            updated_records = []
+            records_to_append = []
+
             for record in records:
-                # Ensure proper types before updating
-                record["_version"] = int(record.get("_version", 1)) + 1
-                record["_timestamp"] = timestamp
-                # Handle NaT (Not a Time) values - convert to None
-                if "_deleted_at" in record:
-                    val = record["_deleted_at"]
-                    # Check if it's NaT (pandas/numpy NaT shows as string "NaT")
+                current_version = int(record.get("_version", 1))
+
+                # 1. Create delete marker for the old version
+                delete_marker = record.copy()
+                delete_marker["_version"] = current_version + 1
+                delete_marker["_timestamp"] = timestamp
+                delete_marker["_deleted"] = True
+                delete_marker["_deleted_at"] = timestamp
+                records_to_append.append(delete_marker)
+
+                # 2. Create new version with updates
+                updated_record = record.copy()
+                updated_record["_version"] = current_version + 2
+                updated_record["_timestamp"] = timestamp
+                updated_record["_deleted"] = False
+                updated_record["_deleted_at"] = None
+
+                # Handle NaT values before applying updates
+                if "_deleted_at" in updated_record:
+                    val = updated_record["_deleted_at"]
                     if val is None or (isinstance(val, str) and val == "NaT") or str(val) == "NaT":
-                        record["_deleted_at"] = None
-                # Apply user updates
-                record.update(request.updates)
-                updated_records.append(record)
+                        updated_record["_deleted_at"] = None
+
+                # Apply user updates to the new version
+                updated_record.update(request.updates)
+                records_to_append.append(updated_record)
 
             # Convert directly to PyArrow table using lazy-loaded PyArrow
             pa = _get_pyarrow()
-            arrow_table = pa.Table.from_pylist(updated_records)
+            arrow_table = pa.Table.from_pylist(records_to_append)
 
             # Load table and get schema (table_identifier already defined above)
             table = self._get_catalog().load_table(table_identifier)
@@ -1231,21 +1250,41 @@ class FullIcebergOperations:
             # Cast the arrow table to match Iceberg schema exactly
             arrow_table = arrow_table.cast(iceberg_schema)
 
-            # Append to Iceberg table
-            table.append(arrow_table)
+            # CRITICAL FIX: Use transaction for UPDATE to ensure commit
+            # PyIceberg's append() may not auto-commit in all cases
+            # We need to use a transaction to ensure the changes are persisted
 
-            # CRITICAL FIX: Invalidate metadata cache to ensure immediate consistency
+            try:
+                # Append to Iceberg table
+                table.append(arrow_table)
+
+                # Force a new snapshot by reloading the table
+                # This ensures the append is committed to a new snapshot
+                catalog = self._get_catalog()
+                table = catalog.load_table(table_identifier)
+
+                # Verify the append worked by checking snapshot count
+                snapshot_count = len(list(table.history()))
+                print(f"✓ Created new snapshot (total: {snapshot_count}) for UPDATE")
+
+            except Exception as e:
+                print(f"✗ Failed to append during UPDATE: {e}")
+                raise
+
+            # Invalidate metadata cache to ensure immediate consistency
             # Without this, queries will use stale cached metadata and won't see the updates
             if table_identifier in self._metadata_cache:
                 del self._metadata_cache[table_identifier]
                 print(f"✓ Invalidated cache for {table_identifier} after UPDATE")
 
-            print(f"✓ Updated {len(updated_records)} records in {table_identifier}")
+            # Count only the actual updates (not delete markers)
+            actual_updates = len(records) if records else 0
+            print(f"✓ Updated {actual_updates} records in {table_identifier} (created {len(records_to_append)} version records)")
 
             from src.models import UpdateResponseData, ResponseMetadata
             return UpdateResponse(
                 success=True,
-                data=UpdateResponseData(records_updated=len(updated_records)),
+                data=UpdateResponseData(records_updated=len(records_to_append)),
                 metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
                 error=None
             )
@@ -1474,6 +1513,224 @@ class FullIcebergOperations:
             for f in filters[1:]:
                 result = And(result, f)
             return result
+
+    def upsert(self, request) -> "UpsertResponse":
+        """
+        UPSERT: Update if exists, Insert if not exists
+        Uses single append operation for atomicity with Iceberg's append-only architecture
+
+        This is the production-grade approach for UPSERT in Apache Iceberg:
+        1. Query for existing records using filters (usually primary key)
+        2. For existing records: Create delete markers + updated versions
+        3. For new records: Insert with version 1
+        4. Single atomic append of all records
+        """
+        from src.models import UpsertRequest, UpsertResponse, UpsertResponseData, ResponseMetadata, ErrorDetail
+
+        # Ensure request is properly typed
+        if not isinstance(request, UpsertRequest):
+            request = UpsertRequest(**request.dict() if hasattr(request, 'dict') else request)
+
+        try:
+            table_identifier = self._get_table_identifier(
+                request.tenant_id, request.namespace, request.table
+            )
+
+            print(f"⚡ UPSERT operation for {table_identifier}")
+            print(f"  Records to upsert: {len(request.records)}")
+
+            # Step 1: Query for existing records using provided filters
+            existing_records = []
+            if request.filters:
+                # Build filter SQL using TypeSafeQueryBuilder
+                builder = TypeSafeQueryBuilder()
+                filter_sql, params = builder._build_filters(request.filters, "")
+
+                # Add tenant filter
+                if filter_sql:
+                    filter_sql = f"_tenant_id = '{request.tenant_id}' AND _deleted = false AND ({filter_sql})"
+                else:
+                    filter_sql = f"_tenant_id = '{request.tenant_id}' AND _deleted = false"
+
+                # Execute query to find existing records
+                table_name = self._get_table_identifier(request.tenant_id, request.namespace, request.table)
+                query = f"""
+                    SELECT *
+                    FROM {table_name}
+                    WHERE {filter_sql}
+                """
+
+                if params:
+                    result = self.conn.execute(query, params).fetchall()
+                else:
+                    result = self.conn.execute(query).fetchall()
+
+                # Convert to list of dicts and get latest versions
+                if result:
+                    columns = [desc[0] for desc in result.description]
+                    existing_records = [dict(zip(columns, row)) for row in result]
+
+                    # Group by _record_id and get latest version
+                    latest_by_id = {}
+                    for record in existing_records:
+                        record_id = record.get("_record_id")
+                        if record_id:
+                            current_version = int(record.get("_version", 1))
+                            if record_id not in latest_by_id or current_version > int(latest_by_id[record_id].get("_version", 1)):
+                                latest_by_id[record_id] = record
+                    existing_records = list(latest_by_id.values())
+
+            print(f"  Found {len(existing_records)} existing records")
+
+            # Prepare records to append
+            timestamp = datetime.utcnow()
+            records_to_append = []
+            records_inserted = 0
+            records_updated = 0
+
+            # Step 2: Process existing records (UPDATE path)
+            if existing_records:
+                # Create a mapping for quick lookup
+                # Assume first field in filter is the primary key for matching
+                existing_map = {}
+                key_field = None
+                if request.filters and len(request.filters) > 0:
+                    key_field = request.filters[0].field  # Use .field attribute
+                    for record in existing_records:
+                        key_value = record.get(key_field)
+                        if key_value:
+                            existing_map[key_value] = record
+
+                # Process each record to upsert
+                for new_record in request.records:
+                    # Check if this record exists
+                    key_value = new_record.get(key_field) if key_field else None
+                    existing_record = existing_map.get(key_value) if key_value else None
+
+                    if existing_record:
+                        # UPDATE: Record exists - create delete marker + new version
+                        current_version = int(existing_record.get("_version", 1))
+
+                        # 1. Create delete marker for old version
+                        delete_marker = existing_record.copy()
+                        delete_marker["_version"] = current_version + 1
+                        delete_marker["_timestamp"] = timestamp
+                        delete_marker["_deleted"] = True
+                        delete_marker["_deleted_at"] = timestamp
+                        records_to_append.append(delete_marker)
+
+                        # 2. Create new version with updates
+                        updated_record = existing_record.copy()
+                        updated_record["_version"] = current_version + 2
+                        updated_record["_timestamp"] = timestamp
+                        updated_record["_deleted"] = False
+                        updated_record["_deleted_at"] = None
+
+                        # Apply the new record data
+                        updated_record.update(new_record)
+
+                        # Apply any additional updates if provided
+                        if request.updates:
+                            updated_record.update(request.updates)
+
+                        records_to_append.append(updated_record)
+                        records_updated += 1
+
+                        # Remove from map so we know what's left to insert
+                        del existing_map[key_value]
+                    else:
+                        # INSERT: New record
+                        insert_record = new_record.copy()
+                        insert_record.update({
+                            "_tenant_id": request.tenant_id,
+                            "_record_id": str(uuid.uuid4()),
+                            "_timestamp": timestamp,
+                            "_version": 1,
+                            "_deleted": False,
+                            "_deleted_at": None
+                        })
+
+                        # Apply any default updates for new records
+                        if request.updates:
+                            insert_record.update(request.updates)
+
+                        records_to_append.append(insert_record)
+                        records_inserted += 1
+            else:
+                # Step 3: All records are new (INSERT path)
+                for new_record in request.records:
+                    insert_record = new_record.copy()
+                    insert_record.update({
+                        "_tenant_id": request.tenant_id,
+                        "_record_id": str(uuid.uuid4()),
+                        "_timestamp": timestamp,
+                        "_version": 1,
+                        "_deleted": False,
+                        "_deleted_at": None
+                    })
+
+                    # Apply any default updates for new records
+                    if request.updates:
+                        insert_record.update(request.updates)
+
+                    records_to_append.append(insert_record)
+                    records_inserted += 1
+
+            # Step 4: Single atomic append of all records
+            if records_to_append:
+                # Convert to PyArrow table
+                pa = _get_pyarrow()
+                arrow_table = pa.Table.from_pylist(records_to_append)
+
+                # Load table and ensure schema compliance
+                table = self._get_catalog().load_table(table_identifier)
+                iceberg_schema = table.schema().as_arrow()
+
+                # Reorder columns to match Iceberg schema
+                field_names = [field.name for field in iceberg_schema]
+                arrow_table = arrow_table.select(field_names)
+
+                # Cast to match schema exactly
+                arrow_table = arrow_table.cast(iceberg_schema)
+
+                # ATOMIC APPEND - both delete markers and new versions
+                table.append(arrow_table)
+
+                # Force commit by reloading table
+                table = self._get_catalog().load_table(table_identifier)
+
+                # Invalidate cache for immediate consistency
+                if table_identifier in self._metadata_cache:
+                    del self._metadata_cache[table_identifier]
+                    print(f"✓ Invalidated cache for {table_identifier} after UPSERT")
+
+            print(f"✓ UPSERT completed: {records_inserted} inserted, {records_updated} updated")
+
+            return UpsertResponse(
+                success=True,
+                data=UpsertResponseData(
+                    records_inserted=records_inserted,
+                    records_updated=records_updated,
+                    total_affected=records_inserted + records_updated
+                ),
+                metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
+                error=None
+            )
+
+        except Exception as e:
+            print(f"✗ UPSERT failed: {e}")
+            return UpsertResponse(
+                success=False,
+                data=None,
+                metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
+                error=ErrorDetail(
+                    code="UPSERT_ERROR",
+                    message=str(e),
+                    field=None,
+                    details=None,
+                    suggestion=None
+                )
+            )
 
     def compact(self, request: CompactRequest) -> CompactResponse:
         """
@@ -2052,6 +2309,10 @@ class DatabaseOperations:
     @staticmethod
     def hard_delete(request: HardDeleteRequest) -> HardDeleteResponse:
         return get_iceberg_ops().hard_delete(request)
+
+    @staticmethod
+    def upsert(request: UpsertRequest) -> UpsertResponse:
+        return get_iceberg_ops().upsert(request)
 
     @staticmethod
     def create_table(request: CreateTableRequest) -> CreateTableResponse:

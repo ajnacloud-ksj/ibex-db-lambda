@@ -546,6 +546,33 @@ class HardDeleteResponse(BaseResponse):
     data: Optional[HardDeleteResponseData] = Field(None, description="Hard delete operation results")
 
 # ============================================================================
+# Upsert Operations
+# ============================================================================
+
+class UpsertRequest(BaseModel):
+    """Upsert request - Update if exists, Insert if not exists"""
+    operation: Literal[OperationType.UPSERT] = OperationType.UPSERT
+    tenant_id: str
+    namespace: str = "default"
+    table: str
+    records: List[Dict[str, Any]] = Field(..., description="Records to upsert")
+    filters: Optional[List[Filter]] = Field(None, description="Filter to identify existing records (usually primary key)")
+    updates: Optional[Dict[str, Any]] = Field(None, description="Updates to apply to existing records")
+    table_schema: Optional[SchemaDefinition] = Field(None, alias="schema")
+
+class UpsertResponseData(BaseModel):
+    """Data structure for upsert operation results"""
+
+    records_inserted: int = Field(..., description="Number of new records inserted")
+    records_updated: int = Field(..., description="Number of existing records updated")
+    total_affected: int = Field(..., description="Total number of records affected")
+
+class UpsertResponse(BaseResponse):
+    """Upsert operation response with standardized structure"""
+
+    data: Optional[UpsertResponseData] = Field(None, description="Upsert operation results")
+
+# ============================================================================
 # Compact Operations
 # ============================================================================
 
