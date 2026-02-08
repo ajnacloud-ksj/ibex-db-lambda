@@ -1231,17 +1231,9 @@ class FullIcebergOperations:
             for record in records:
                 current_version = int(record.get("_version", 1))
 
-                # 1. Create delete marker for the old version
-                delete_marker = record.copy()
-                delete_marker["_version"] = current_version + 1
-                delete_marker["_timestamp"] = timestamp
-                delete_marker["_deleted"] = True
-                delete_marker["_deleted_at"] = timestamp
-                records_to_append.append(delete_marker)
-
-                # 2. Create new version with updates
+                # Create new version with updates (no delete marker for UPDATE operations)
                 updated_record = record.copy()
-                updated_record["_version"] = current_version + 2
+                updated_record["_version"] = current_version + 1
                 updated_record["_timestamp"] = timestamp
 
                 # Check if this is a DELETE operation (updates contain _deleted=True)
