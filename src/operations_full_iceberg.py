@@ -1006,15 +1006,14 @@ class FullIcebergOperations:
                 # FIX: Apply _deleted filter BEFORE selecting latest version
                 # This ensures we get the latest NON-DELETED version
                 if not request.include_deleted:
-                    # Get latest non-deleted version for each record
+                    # FIX: Get the absolute latest version first, THEN check if deleted
+                    # This ensures that if a record is deleted, we don't return old versions
                     sql = f"""
                         WITH ranked_records AS (
                             SELECT {scan_columns},
                                    ROW_NUMBER() OVER (
                                        PARTITION BY _record_id
-                                       ORDER BY
-                                           CASE WHEN _deleted IS NOT TRUE THEN 0 ELSE 1 END,
-                                           _version DESC
+                                       ORDER BY _version DESC
                                    ) as rn
                             FROM iceberg_scan('{metadata_path}')
                             WHERE _tenant_id = '{request.tenant_id}'
