@@ -27,8 +27,4 @@ jobs:
       lambda-function-name: ibex-db-lambda
       image-uri: ${{ needs.build-and-push.outputs.image-uri }}
       role-to-assume: arn:aws:iam::808527335982:role/GitHubActions-Deploy-Role
-      environment-variables: |
-        ENVIRONMENT=production
-        BUCKET_NAME=ajna-ibex-db-warehouse--aps1-az1--x-s3
-        AWS_REGION=ap-south-1
-        AWS_ACCOUNT_ID=808527335982
+      environment-variables: "ENVIRONMENT=production,BUCKET_NAME=ajna-ibex-db-warehouse--aps1-az1--x-s3,AWS_REGION=ap-south-1,AWS_ACCOUNT_ID=808527335982"
