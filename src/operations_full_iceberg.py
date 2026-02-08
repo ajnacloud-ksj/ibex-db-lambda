@@ -1244,8 +1244,17 @@ class FullIcebergOperations:
                 updated_record = record.copy()
                 updated_record["_version"] = current_version + 2
                 updated_record["_timestamp"] = timestamp
-                updated_record["_deleted"] = False
-                updated_record["_deleted_at"] = None
+
+                # Check if this is a DELETE operation (updates contain _deleted=True)
+                # If so, don't reset _deleted to False
+                if request.updates.get("_deleted") == True:
+                    # This is a DELETE operation - keep deleted status
+                    updated_record["_deleted"] = True
+                    updated_record["_deleted_at"] = request.updates.get("_deleted_at", timestamp)
+                else:
+                    # Normal UPDATE - reset deleted status
+                    updated_record["_deleted"] = False
+                    updated_record["_deleted_at"] = None
 
                 # Handle NaT values before applying updates
                 if "_deleted_at" in updated_record:
