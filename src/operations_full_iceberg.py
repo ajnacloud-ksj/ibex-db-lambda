@@ -1003,17 +1003,37 @@ class FullIcebergOperations:
 
             if needs_versioning:
                 # Original query with ROW_NUMBER (slower but handles versions)
-                sql = f"""
-                    WITH ranked_records AS (
-                        SELECT {scan_columns},
-                               ROW_NUMBER() OVER (PARTITION BY _record_id ORDER BY _version DESC) as rn
-                        FROM iceberg_scan('{metadata_path}')
-                        WHERE _tenant_id = '{request.tenant_id}'
-                    )
-                    SELECT {select_clause} FROM ranked_records
-                    WHERE rn = 1
-                    {deleted_filter}
-                """
+                # FIX: Apply _deleted filter BEFORE selecting latest version
+                # This ensures we get the latest NON-DELETED version
+                if not request.include_deleted:
+                    # Get latest non-deleted version for each record
+                    sql = f"""
+                        WITH ranked_records AS (
+                            SELECT {scan_columns},
+                                   ROW_NUMBER() OVER (
+                                       PARTITION BY _record_id
+                                       ORDER BY
+                                           CASE WHEN _deleted IS NOT TRUE THEN 0 ELSE 1 END,
+                                           _version DESC
+                                   ) as rn
+                            FROM iceberg_scan('{metadata_path}')
+                            WHERE _tenant_id = '{request.tenant_id}'
+                        )
+                        SELECT {select_clause} FROM ranked_records
+                        WHERE rn = 1 AND _deleted IS NOT TRUE
+                    """
+                else:
+                    # Include deleted records - get absolute latest version
+                    sql = f"""
+                        WITH ranked_records AS (
+                            SELECT {scan_columns},
+                                   ROW_NUMBER() OVER (PARTITION BY _record_id ORDER BY _version DESC) as rn
+                            FROM iceberg_scan('{metadata_path}')
+                            WHERE _tenant_id = '{request.tenant_id}'
+                        )
+                        SELECT {select_clause} FROM ranked_records
+                        WHERE rn = 1
+                    """
             else:
                 # FAST PATH: Simple query without versioning (much faster!)
                 sql = f"""
@@ -1162,18 +1182,22 @@ class FullIcebergOperations:
             builder = TypeSafeQueryBuilder()
             filter_sql, params = builder._build_filters(request.filters, "")
             
-            # Query to get only the LATEST version of each matching record
-            # This uses a window function to rank versions per record_id
+            # Query to get only the LATEST NON-DELETED version of each matching record
+            # FIX: Prioritize non-deleted records when selecting latest version
             sql = f"""
                 WITH ranked_records AS (
                     SELECT *,
-                           ROW_NUMBER() OVER (PARTITION BY _record_id ORDER BY _version DESC) as rn
+                           ROW_NUMBER() OVER (
+                               PARTITION BY _record_id
+                               ORDER BY
+                                   CASE WHEN _deleted IS NOT TRUE THEN 0 ELSE 1 END,
+                                   _version DESC
+                           ) as rn
                     FROM iceberg_scan('{metadata_path}')
                     WHERE _tenant_id = '{request.tenant_id}'
-                      AND _deleted IS NOT TRUE
                       AND ({filter_sql})
                 )
-                SELECT * FROM ranked_records WHERE rn = 1
+                SELECT * FROM ranked_records WHERE rn = 1 AND _deleted IS NOT TRUE
             """
             
             # Execute query
