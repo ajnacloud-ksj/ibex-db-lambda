@@ -40,6 +40,7 @@ class OperationType(str, Enum):
     DROP_NAMESPACE = "DROP_NAMESPACE"
     GET_UPLOAD_URL = "GET_UPLOAD_URL"
     GET_DOWNLOAD_URL = "GET_DOWNLOAD_URL"
+    EXPORT_CSV = "EXPORT_CSV"
 
 class SortOrder(str, Enum):
     """Sort order options"""
@@ -790,6 +791,40 @@ class GetDownloadUrlResponseData(BaseModel):
 class GetDownloadUrlResponse(BaseResponse):
     """Response containing download URL"""
     data: Optional[GetDownloadUrlResponseData] = Field(None, description="Download URL details")
+
+# ============================================================================
+# Export Operations
+# ============================================================================
+
+class ExportCsvRequest(BaseModel):
+    """Request to export table data as CSV"""
+    operation: Literal[OperationType.EXPORT_CSV] = OperationType.EXPORT_CSV
+    tenant_id: str
+    namespace: str = "default"
+    table: str
+    # Filtering and Selection
+    filters: Optional[List[Filter]] = Field(None, description="Filter conditions (all ANDed)")
+    projection: Optional[List[str]] = Field(None, description="Columns to export (default: all)")
+    sort: Optional[List[SortField]] = Field(None, description="Sort order")
+    limit: Optional[int] = Field(None, description="Maximum rows to export")
+    # Export Options
+    filename: Optional[str] = Field(None, description="Custom filename (default: {table}_{timestamp}.csv)")
+    include_header: bool = Field(True, description="Include CSV header row")
+    include_deleted: bool = Field(False, description="Include soft-deleted records")
+    expiration_seconds: int = Field(3600, description="Download link expiration in seconds")
+
+class ExportCsvResponseData(BaseModel):
+    """Data for CSV export response"""
+    download_url: str = Field(..., description="Presigned URL to download the CSV")
+    rows_exported: int = Field(..., description="Number of rows exported")
+    file_size_bytes: Optional[int] = Field(None, description="Size of exported file in bytes")
+    filename: str = Field(..., description="Name of the exported file")
+    expiration_seconds: int = Field(..., description="Time until link expires")
+
+class ExportCsvResponse(BaseResponse):
+    """Response containing export details"""
+    data: Optional[ExportCsvResponseData] = Field(None, description="Export results")
+
 
 
 # Update forward references for new models

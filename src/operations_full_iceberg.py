@@ -2161,6 +2161,161 @@ class FullIcebergOperations:
                 error=ErrorDetail(code="DROP_NAMESPACE_ERROR", message=str(e))
             )
 
+    def export_csv(self, request: ExportCsvRequest) -> ExportCsvResponse:
+        """
+        Export table data as CSV directly to S3 using DuckDB's parallel COPY command.
+        This streams data from Iceberg -> DuckDB -> S3 without loading into memory.
+        """
+        try:
+            print(f"Starting CSV export for {request.table} (tenant={request.tenant_id})")
+            start_time = time.time()
+            
+            table_identifier = self._get_table_identifier(
+                request.tenant_id, request.namespace, request.table
+            )
+            
+            # Get metadata path
+            try:
+                metadata_path = self._get_metadata_path(table_identifier)
+            except Exception:
+                from src.models import ResponseMetadata
+                return ExportCsvResponse(
+                    success=False,
+                    data=None,
+                    metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
+                    error=ErrorDetail(code="TABLE_NOT_FOUND", message=f"Table {request.table} not found")
+                )
+
+            # Build SELECT clause
+            select_clause = "*"
+            if request.projection:
+                select_clause = ", ".join(request.projection)
+
+            # Build WHERE clause
+            builder = TypeSafeQueryBuilder()
+            filter_sql, params = builder._build_filters(request.filters, "")
+            
+            # Base filters (tenant + deleted)
+            base_filters = [f"_tenant_id = '{request.tenant_id}'"]
+            if not request.include_deleted:
+                base_filters.append("_deleted IS NOT TRUE")
+            
+            if filter_sql:
+                base_filters.append(f"({filter_sql})")
+            
+            where_clause = " AND ".join(base_filters)
+
+            # Build base query
+            sql = f"""
+                SELECT {select_clause}
+                FROM iceberg_scan('{metadata_path}')
+                WHERE {where_clause}
+            """
+
+            # Add sorting
+            if request.sort:
+                order_parts = []
+                for sort_field in request.sort:
+                    order_parts.append(f"{sort_field.field} {sort_field.order.value.upper()}")
+                sql += f" ORDER BY {', '.join(order_parts)}"
+
+            # Add limit
+            if request.limit:
+                sql += f" LIMIT {request.limit}"
+
+            # Generate export location
+            export_id = str(uuid.uuid4())
+            timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+            filename = request.filename or f"{request.table}_{timestamp}.csv"
+            if not filename.endswith('.csv'):
+                filename += '.csv'
+            
+            s3_config = self.config.s3
+            bucket = s3_config['bucket_name']
+            key = f"exports/{request.tenant_id}/{request.table}/{export_id}/{filename}"
+            s3_uri = f"s3://{bucket}/{key}"
+            
+            print(f"Exporting to: {s3_uri}")
+
+            # Execute COPY to S3
+            # DuckDB's httpfs extension handles the S3 write directly
+            copy_sql = f"""
+                COPY ({sql}) TO '{s3_uri}' (FORMAT CSV, HEADER {str(request.include_header).upper()});
+            """
+            
+            # Execute
+            if params:
+                self.conn.execute(copy_sql, params)
+            else:
+                self.conn.execute(copy_sql)
+            
+            # Get file size and row count
+            # Use boto3 to get object metadata
+            import boto3
+            s3 = boto3.client('s3', region_name=s3_config['region'])
+            
+            try:
+                obj_head = s3.head_object(Bucket=bucket, Key=key)
+                size_bytes = obj_head['ContentLength']
+            except Exception as e:
+                print(f"Warning: Could not get export file size: {e}")
+                size_bytes = 0
+
+            # Generate Presigned URL
+            try:
+                presigned_url = s3.generate_presigned_url(
+                    'get_object',
+                    Params={'Bucket': bucket, 'Key': key},
+                    ExpiresIn=request.expiration_seconds
+                )
+            except Exception as e:
+                raise RuntimeError(f"Failed to generate download URL: {e}")
+
+            # Calculate row count (approximate or execute count query if needed)
+            # For now, we'll run a quick count query if not limited
+            # Optimization: If we used LIMIT, use that as upper bound
+            row_count = 0
+            if request.limit and request.limit < 1000:
+                 # Small limit, just set it
+                 row_count = request.limit 
+            else:
+                # Count query
+                count_sql = f"SELECT COUNT(*) FROM iceberg_scan('{metadata_path}') WHERE {where_clause}"
+                if params:
+                    row_count = self.conn.execute(count_sql, params).fetchone()[0]
+                else:
+                    row_count = self.conn.execute(count_sql).fetchone()[0]
+                
+                if request.limit and row_count > request.limit:
+                    row_count = request.limit
+
+            execution_time = (time.time() - start_time) * 1000
+            print(f"✓ Export complete: {row_count} rows, {size_bytes} bytes in {execution_time:.0f}ms")
+
+            from src.models import ExportCsvResponseData, ResponseMetadata
+            return ExportCsvResponse(
+                success=True,
+                data=ExportCsvResponseData(
+                    download_url=presigned_url,
+                    rows_exported=row_count,
+                    file_size_bytes=size_bytes,
+                    filename=filename,
+                    expiration_seconds=request.expiration_seconds
+                ),
+                metadata=ResponseMetadata(request_id="temp", execution_time_ms=execution_time),
+                error=None
+            )
+
+        except Exception as e:
+            print(f"✗ Export failed: {e}")
+            from src.models import ResponseMetadata
+            return ExportCsvResponse(
+                success=False,
+                data=None,
+                metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
+                error=ErrorDetail(code="EXPORT_ERROR", message=str(e))
+            )
+
     def _map_to_iceberg_type(self, field_def):
         """
         Map field definition to Iceberg types (supports primitive and complex types)

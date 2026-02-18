@@ -622,6 +622,34 @@
       }
     },
     {
+      "name": "EXPORT - CSV",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{api_key}}",
+            "type": "default"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"EXPORT_CSV\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"namespace\": \"{{namespace}}\",\n  \"table\": \"products\",\n  \"filters\": [\n    {\"field\": \"price\", \"operator\": \"gt\", \"value\": 100}\n  ],\n  \"projection\": [\"product_id\", \"name\", \"price\", \"stock\"],\n  \"sort\": [{\"field\": \"price\", \"order\": \"desc\"}],\n  \"limit\": 1000,\n  \"filename\": \"expensive_products.csv\",\n  \"include_header\": true\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}",
+          "host": [
+            "{{baseUrl}}"
+          ]
+        },
+        "description": "Export filtered data as CSV. Returns a presigned S3 download URL."
+      }
+    },
+    {
       "name": "STORAGE - Get Upload URL",
       "request": {
         "method": "POST",

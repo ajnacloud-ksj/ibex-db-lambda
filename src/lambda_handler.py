@@ -30,7 +30,7 @@ from src.models import (
     QueryRequest, WriteRequest, UpdateRequest, DeleteRequest, HardDeleteRequest, UpsertRequest,
     CompactRequest,
     CreateTableRequest, ListTablesRequest, DescribeTableRequest,
-    DropTableRequest, DropNamespaceRequest
+    DropTableRequest, DropNamespaceRequest, ExportCsvRequest
 )
 # Use full Iceberg implementation with PyIceberg for writes and DuckDB for reads
 from src.operations_full_iceberg import DatabaseOperations
@@ -217,6 +217,10 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         elif operation == OperationType.DROP_NAMESPACE:
             request = DropNamespaceRequest(**request_data)
             result = DatabaseOperations.drop_namespace(request)
+
+        elif operation == OperationType.EXPORT_CSV:
+            request = ExportCsvRequest(**request_data)
+            result = DatabaseOperations.export_csv(request)
 
         elif operation == OperationType.GET_UPLOAD_URL:
             # Import models dynamically or use from import above
