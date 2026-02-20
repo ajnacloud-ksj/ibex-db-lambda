@@ -88,7 +88,8 @@ from .models import (
     QueryRequest, QueryResponse,
     ErrorDetail, QueryMetadata,
     DropTableRequest, DropTableResponse, DropTableResponseData,
-    DropNamespaceRequest, DropNamespaceResponse, DropNamespaceResponseData
+    DropNamespaceRequest, DropNamespaceResponse, DropNamespaceResponseData,
+    ExportCsvRequest, ExportCsvResponse, ExportCsvResponseData
 )
 from .query_builder import TypeSafeQueryBuilder
 
