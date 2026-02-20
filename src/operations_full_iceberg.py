@@ -2517,3 +2517,7 @@ class DatabaseOperations:
     @staticmethod
     def drop_namespace(request: DropNamespaceRequest) -> DropNamespaceResponse:
         return get_iceberg_ops().drop_namespace(request)
+
+    @staticmethod
+    def export_csv(request: ExportCsvRequest) -> ExportCsvResponse:
+        return get_iceberg_ops().export_csv(request)
