@@ -39,7 +39,7 @@ class StorageOperations:
         try:
             config = get_config()
             s3_client = StorageOperations._get_s3_client()
-            bucket_name = config.s3['bucket_name']
+            bucket_name = config.s3.get('upload_bucket_name', config.s3['bucket_name'])
             
             # Generate key: uploads/{tenant_id}/{uuid}/{filename}
             # This ensures tenant isolation and prevents overwrites
@@ -83,7 +83,7 @@ class StorageOperations:
         try:
             config = get_config()
             s3_client = StorageOperations._get_s3_client()
-            bucket_name = config.s3['bucket_name']
+            bucket_name = config.s3.get('upload_bucket_name', config.s3['bucket_name'])
             
             # Security check: Ensure key belongs to tenant?
             # Key format: uploads/{tenant_id}/...
