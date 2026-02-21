@@ -88,14 +88,20 @@ class StorageOperations:
             s3_client = StorageOperations._get_s3_client()
             bucket_name = config.s3.get('upload_bucket_name', config.s3['bucket_name'])
             
-            # Security check: Ensure key belongs to tenant?
-            # Key format: uploads/{tenant_id}/...
-            # We should probably validate this to prevent cross-tenant access.
-            if f"/{request.tenant_id}/" not in request.file_key and not request.file_key.startswith(f"uploads/{request.tenant_id}/"):
-                 # This is a weak check but better than nothing.
-                 # If the key is just "foo.jpg" it might be old legacy.
-                 # But if it's "uploads/other-tenant/..." we should block.
-                 pass
+            # Security check: Ensure key belongs to tenant
+            # Support both new path 'tenants/{tenant_id}/' and legacy 'uploads/{tenant_id}/'
+            is_owner = (
+                request.file_key.startswith(f"tenants/{request.tenant_id}/") or 
+                request.file_key.startswith(f"uploads/{request.tenant_id}/")
+            )
+
+            if not is_owner:
+                 from src.models import ResponseMetadata
+                 return GetDownloadUrlResponse(
+                    success=False,
+                    metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
+                    error=ErrorDetail(code="FORBIDDEN", message="Access denied: File does not belong to your tenant")
+                )
             
             url = s3_client.generate_presigned_url(
                 ClientMethod='get_object',
