@@ -96,7 +96,6 @@ class StorageOperations:
             )
 
             if not is_owner:
-                 from src.models import ResponseMetadata
                  return GetDownloadUrlResponse(
                     success=False,
                     metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
