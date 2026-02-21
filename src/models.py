@@ -764,6 +764,7 @@ class GetUploadUrlRequest(BaseModel):
     tenant_id: str
     filename: str = Field(..., description="Name of the file to upload")
     content_type: str = Field(..., description="MIME type of the file")
+    folder: Optional[str] = Field(None, description="Optional subfolder for the file (e.g. 'pids', 'gateways')")
     expires_in: int = Field(300, description="URL expiration in seconds")
 
 class GetUploadUrlResponseData(BaseModel):

@@ -41,10 +41,13 @@ class StorageOperations:
             s3_client = StorageOperations._get_s3_client()
             bucket_name = config.s3.get('upload_bucket_name', config.s3['bucket_name'])
             
-            # Generate key: uploads/{tenant_id}/{uuid}/{filename}
-            # This ensures tenant isolation and prevents overwrites
+            # Professional path structure: 
+            # tenants/{tenant_id}/{folder}/{year}/{month}/{uuid}/{filename}
+            folder = request.folder or 'uploads'
             file_uuid = str(uuid.uuid4())
-            key = f"uploads/{request.tenant_id}/{file_uuid}/{request.filename}"
+            now = datetime.utcnow()
+            
+            key = f"tenants/{request.tenant_id}/{folder}/{now.year}/{now.month:02d}/{file_uuid}/{request.filename}"
             
             # Generate URL
             url = s3_client.generate_presigned_url(
