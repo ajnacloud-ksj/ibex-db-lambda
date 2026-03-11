@@ -18,6 +18,8 @@ jobs:
       role-to-assume: arn:aws:iam::808527335982:role/GitHubActions-Deploy-Role
       image-tag: ${{ github.sha }}
       platform: linux/arm64
+      # Note: To update ENGINE_VERSION, add build-args support to reusable workflow
+      # or pass ENGINE_VERSION directly in docker build command (currently v0.2.0 via Dockerfile ARG default)
 
   deploy-lambda:
     needs: build-and-push

@@ -30,7 +30,8 @@ from src.models import (
     QueryRequest, WriteRequest, UpdateRequest, DeleteRequest, HardDeleteRequest, UpsertRequest,
     CompactRequest,
     CreateTableRequest, ListTablesRequest, DescribeTableRequest,
-    DropTableRequest, DropNamespaceRequest, ExportCsvRequest
+    DropTableRequest, DropNamespaceRequest, ExportCsvRequest,
+    ExecuteSqlRequest, FederatedQueryRequest
 )
 # Use full Iceberg implementation with PyIceberg for writes and DuckDB for reads
 from src.operations_full_iceberg import DatabaseOperations
@@ -232,6 +233,70 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             from src.models import GetDownloadUrlRequest
             request = GetDownloadUrlRequest(**request_data)
             result = StorageOperations.get_download_url(request)
+
+        elif operation == OperationType.EXECUTE_SQL:
+            request = ExecuteSqlRequest(**request_data)
+            # Use ibex-query-engine-lib for powerful SQL execution
+            from ibexdb import FederatedQueryEngine
+            engine = FederatedQueryEngine(tenant_id=request.tenant_id, namespace=request.namespace)
+            try:
+                df = engine.execute_sql(request.sql, request.params)
+                records = df.to_dicts() if hasattr(df, 'to_dicts') else df.to_dict('records')
+                result_data = {
+                    'success': True,
+                    'data': {
+                        'records': records,
+                        'row_count': len(records),
+                    },
+                    'metadata': {'request_id': request_id}
+                }
+                # Return directly since we're building the response ourselves
+                execution_time_ms = (time.time() - start_time) * 1000
+                result_data['metadata']['execution_time_ms'] = round(execution_time_ms, 2)
+                return {
+                    'statusCode': 200,
+                    'headers': {
+                        'Content-Type': 'application/json',
+                        'Access-Control-Allow-Origin': '*',
+                        'X-Request-ID': request_id,
+                    },
+                    'body': dumps_json(result_data, default=str)
+                }
+            finally:
+                engine.close()
+
+        elif operation == OperationType.FEDERATED_QUERY:
+            request = FederatedQueryRequest(**request_data)
+            from ibexdb import FederatedQueryEngine
+            engine = FederatedQueryEngine(tenant_id=request.tenant_id, namespace=request.namespace)
+            try:
+                # Configure additional sources if provided
+                if request.sources:
+                    for source_id, source_config in request.sources.items():
+                        engine.add_source(source_id, source_config.get('type', 'postgres'), source_config)
+                df = engine.execute_sql(request.sql, request.params)
+                records = df.to_dicts() if hasattr(df, 'to_dicts') else df.to_dict('records')
+                result_data = {
+                    'success': True,
+                    'data': {
+                        'records': records,
+                        'row_count': len(records),
+                    },
+                    'metadata': {'request_id': request_id}
+                }
+                execution_time_ms = (time.time() - start_time) * 1000
+                result_data['metadata']['execution_time_ms'] = round(execution_time_ms, 2)
+                return {
+                    'statusCode': 200,
+                    'headers': {
+                        'Content-Type': 'application/json',
+                        'Access-Control-Allow-Origin': '*',
+                        'X-Request-ID': request_id,
+                    },
+                    'body': dumps_json(result_data, default=str)
+                }
+            finally:
+                engine.close()
 
         else:
             print(f"✗ Unknown operation: {operation}")

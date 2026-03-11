@@ -41,6 +41,8 @@ class OperationType(str, Enum):
     GET_UPLOAD_URL = "GET_UPLOAD_URL"
     GET_DOWNLOAD_URL = "GET_DOWNLOAD_URL"
     EXPORT_CSV = "EXPORT_CSV"
+    EXECUTE_SQL = "EXECUTE_SQL"
+    FEDERATED_QUERY = "FEDERATED_QUERY"
 
 class SortOrder(str, Enum):
     """Sort order options"""
@@ -826,6 +828,29 @@ class ExportCsvResponse(BaseResponse):
     """Response containing export details"""
     data: Optional[ExportCsvResponseData] = Field(None, description="Export results")
 
+# ============================================================================
+# Execute SQL Operations
+# ============================================================================
+
+class ExecuteSqlRequest(BaseModel):
+    """Execute raw SQL query via the query engine"""
+    operation: Literal[OperationType.EXECUTE_SQL] = OperationType.EXECUTE_SQL
+    tenant_id: str = Field(..., description="Tenant identifier")
+    namespace: str = Field("default", description="Table namespace")
+    sql: str = Field(..., description="SQL query to execute")
+    params: Optional[List[Any]] = Field(None, description="Query parameters for parameterized queries")
+    timeout_ms: Optional[int] = Field(30000, description="Query timeout in milliseconds")
+
+
+class FederatedQueryRequest(BaseModel):
+    """Execute a federated query across multiple data sources"""
+    operation: Literal[OperationType.FEDERATED_QUERY] = OperationType.FEDERATED_QUERY
+    tenant_id: str = Field(..., description="Tenant identifier")
+    namespace: str = Field("default", description="Table namespace")
+    sql: str = Field(..., description="SQL query to execute across federated sources")
+    params: Optional[List[Any]] = Field(None, description="Query parameters")
+    sources: Optional[Dict[str, Any]] = Field(None, description="Data source configuration overrides")
+    timeout_ms: Optional[int] = Field(30000, description="Query timeout in milliseconds")
 
 
 # Update forward references for new models

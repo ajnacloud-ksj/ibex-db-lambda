@@ -11,6 +11,10 @@ COPY pyproject.toml README.md ./
 # Install dependencies from pyproject.toml (depedencies only, not the project itself)
 RUN uv pip install --system --no-cache -r pyproject.toml
 
+# Install ibex-query-engine from GitHub Release
+ARG ENGINE_VERSION=v0.2.0
+RUN uv pip install --system --no-cache "https://github.com/ajnacloud-ksj/ibex-query-engine-lib/releases/download/${ENGINE_VERSION}/ibex_query_engine-0.2.0-py3-none-any.whl"
+
 # Install DuckDB Iceberg extensions
 # Pre-install all necessary extensions at build time
 # Set home directory to a persistent location that Lambda can access
