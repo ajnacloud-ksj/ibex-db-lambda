@@ -236,8 +236,9 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
         elif operation == OperationType.EXECUTE_SQL:
             request = ExecuteSqlRequest(**request_data)
-            # Use DatabaseOperations' DuckDB connection (already configured with Iceberg)
-            ops = DatabaseOperations()
+            # Use the shared Iceberg ops DuckDB connection (already configured with catalog + S3)
+            from src.operations_full_iceberg import get_iceberg_ops
+            ops = get_iceberg_ops()
             result = ops.conn.execute(request.sql, request.params or [])
             columns = [desc[0] for desc in result.description]
             rows = result.fetchall()
