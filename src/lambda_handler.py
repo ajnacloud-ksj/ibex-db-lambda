@@ -236,39 +236,36 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
         elif operation == OperationType.EXECUTE_SQL:
             request = ExecuteSqlRequest(**request_data)
-            # Use ibex-query-engine-lib for powerful SQL execution
-            from ibexdb import FederatedQueryEngine
-            engine = FederatedQueryEngine(tenant_id=request.tenant_id, namespace=request.namespace)
-            try:
-                df = engine.execute_sql(request.sql, request.params)
-                records = df.to_dicts() if hasattr(df, 'to_dicts') else df.to_dict('records')
-                result_data = {
-                    'success': True,
-                    'data': {
-                        'records': records,
-                        'row_count': len(records),
-                    },
-                    'metadata': {'request_id': request_id}
-                }
-                # Return directly since we're building the response ourselves
-                execution_time_ms = (time.time() - start_time) * 1000
-                result_data['metadata']['execution_time_ms'] = round(execution_time_ms, 2)
-                return {
-                    'statusCode': 200,
-                    'headers': {
-                        'Content-Type': 'application/json',
-                        'Access-Control-Allow-Origin': '*',
-                        'X-Request-ID': request_id,
-                    },
-                    'body': dumps_json(result_data, default=str)
-                }
-            finally:
-                engine.close()
+            # Use DatabaseOperations' DuckDB connection (already configured with Iceberg)
+            ops = DatabaseOperations()
+            result = ops.conn.execute(request.sql, request.params or [])
+            columns = [desc[0] for desc in result.description]
+            rows = result.fetchall()
+            records = [dict(zip(columns, row)) for row in rows]
+            result_data = {
+                'success': True,
+                'data': {
+                    'records': records,
+                    'row_count': len(records),
+                },
+                'metadata': {'request_id': request_id}
+            }
+            execution_time_ms = (time.time() - start_time) * 1000
+            result_data['metadata']['execution_time_ms'] = round(execution_time_ms, 2)
+            return {
+                'statusCode': 200,
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*',
+                    'X-Request-ID': request_id,
+                },
+                'body': dumps_json(result_data, default=str)
+            }
 
         elif operation == OperationType.FEDERATED_QUERY:
             request = FederatedQueryRequest(**request_data)
             from ibexdb import FederatedQueryEngine
-            engine = FederatedQueryEngine(tenant_id=request.tenant_id, namespace=request.namespace)
+            engine = FederatedQueryEngine()
             try:
                 # Configure additional sources if provided
                 if request.sources:
