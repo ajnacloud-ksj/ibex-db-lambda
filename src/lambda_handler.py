@@ -152,14 +152,19 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             }
 
         # Parse request body
-        if not event.get('body'):
-            return error_response(400, 'Request body is required', request_id)
-
-        # Handle both string and dict body (for testing)
-        if isinstance(event['body'], str):
-            request_data = json.loads(event['body'])
+        # Support both API Gateway format (body field) and direct Lambda invocation
+        # (operation field at top level)
+        if event.get('body'):
+            # API Gateway / Function URL format
+            if isinstance(event['body'], str):
+                request_data = json.loads(event['body'])
+            else:
+                request_data = event['body']
+        elif event.get('operation'):
+            # Direct Lambda invocation (e.g., from SDK's _invoke_lambda)
+            request_data = event
         else:
-            request_data = event['body']
+            return error_response(400, 'Request body is required', request_id)
 
         # Get operation type
         operation = request_data.get('operation', '').upper()
