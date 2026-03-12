@@ -240,26 +240,33 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             from src.operations_full_iceberg import get_iceberg_ops
             ops = get_iceberg_ops()
 
-            # Auto-register Iceberg tables as DuckDB views so users can write
-            # natural SQL like "SELECT * FROM app_food_entries_v2" instead of
-            # iceberg_scan('s3://...metadata.json')
+            # Auto-register only referenced Iceberg tables as DuckDB views
+            # Parse SQL to find table names, then resolve only those via catalog
+            import re
             namespace = request.namespace or "default"
             iceberg_ns = ops._get_namespace(request.tenant_id, namespace)
-            try:
-                catalog = ops._get_catalog()
-                tables = catalog.list_tables(iceberg_ns)
-                for tbl_tuple in tables:
-                    tbl_name = tbl_tuple[1]  # (namespace, name) tuple
-                    try:
-                        table_id = f"{iceberg_ns}.{tbl_name}"
-                        metadata_path = ops._get_metadata_path(table_id)
-                        ops.conn.execute(
-                            f"CREATE OR REPLACE VIEW \"{tbl_name}\" AS SELECT * FROM iceberg_scan('{metadata_path}')"
-                        )
-                    except Exception as view_err:
-                        print(f"Warning: Could not register view for {tbl_name}: {view_err}")
-            except Exception as catalog_err:
-                print(f"Warning: Could not list tables for view registration: {catalog_err}")
+            sql_upper = request.sql.upper()
+            # Find table references after FROM/JOIN keywords
+            table_refs = set(re.findall(
+                r'(?:FROM|JOIN)\s+["\']?(\w+)["\']?', sql_upper
+            ))
+            if table_refs:
+                try:
+                    catalog = ops._get_catalog()
+                    known_tables = {t[1].upper(): t[1] for t in catalog.list_tables(iceberg_ns)}
+                    for ref in table_refs:
+                        actual_name = known_tables.get(ref)
+                        if actual_name:
+                            try:
+                                table_id = f"{iceberg_ns}.{actual_name}"
+                                metadata_path = ops._get_metadata_path(table_id)
+                                ops.conn.execute(
+                                    f"CREATE OR REPLACE VIEW \"{actual_name}\" AS SELECT * FROM iceberg_scan('{metadata_path}')"
+                                )
+                            except Exception as view_err:
+                                print(f"Warning: Could not register view for {actual_name}: {view_err}")
+                except Exception as catalog_err:
+                    print(f"Warning: Could not resolve table views: {catalog_err}")
 
             result = ops.conn.execute(request.sql, request.params or [])
             columns = [desc[0] for desc in result.description]
