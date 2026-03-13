@@ -86,13 +86,17 @@ class StorageOperations:
         try:
             config = get_config()
             s3_client = StorageOperations._get_s3_client()
-            bucket_name = config.s3.get('upload_bucket_name', config.s3['bucket_name'])
-            
+            default_bucket = config.s3.get('upload_bucket_name', config.s3['bucket_name'])
+
             # Security check: Ensure key belongs to tenant
-            # Support both new path 'tenants/{tenant_id}/' and legacy 'uploads/{tenant_id}/'
+            # Accepted patterns:
+            #   tenants/{tenant_id}/...  (new IbexDB-managed uploads)
+            #   uploads/{tenant_id}/...  (legacy tenant-prefixed)
+            #   uploads/...              (legacy app-managed, requires explicit bucket override)
             is_owner = (
-                request.file_key.startswith(f"tenants/{request.tenant_id}/") or 
-                request.file_key.startswith(f"uploads/{request.tenant_id}/")
+                request.file_key.startswith(f"tenants/{request.tenant_id}/") or
+                request.file_key.startswith(f"uploads/{request.tenant_id}/") or
+                (request.file_key.startswith("uploads/") and request.bucket is not None)
             )
 
             if not is_owner:
@@ -101,7 +105,10 @@ class StorageOperations:
                     metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
                     error=ErrorDetail(code="FORBIDDEN", message="Access denied: File does not belong to your tenant")
                 )
-            
+
+            # Use override bucket for legacy keys, default bucket otherwise
+            bucket_name = request.bucket or default_bucket
+
             url = s3_client.generate_presigned_url(
                 ClientMethod='get_object',
                 Params={
@@ -110,7 +117,7 @@ class StorageOperations:
                 },
                 ExpiresIn=request.expires_in
             )
-            
+
             return GetDownloadUrlResponse(
                 success=True,
                 data=GetDownloadUrlResponseData(
@@ -118,7 +125,7 @@ class StorageOperations:
                     expires_in=request.expires_in
                 ),
                 metadata=ResponseMetadata(
-                    request_id="temp", 
+                    request_id="temp",
                     execution_time_ms=0
                 )
             )

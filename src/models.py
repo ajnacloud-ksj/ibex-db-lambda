@@ -785,6 +785,7 @@ class GetDownloadUrlRequest(BaseModel):
     tenant_id: str
     file_key: str = Field(..., description="S3 object key")
     expires_in: int = Field(3600, description="URL expiration in seconds")
+    bucket: Optional[str] = Field(None, description="Override S3 bucket (for legacy keys in different buckets)")
 
 class GetDownloadUrlResponseData(BaseModel):
     """Data for download URL response"""
