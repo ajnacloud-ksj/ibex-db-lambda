@@ -1,6 +1,10 @@
 """
 AWS Lambda Handler for S3 ACID Database
 Handles API Gateway events and routes to appropriate database operations
+
+Auth layer (controlled by IBEX_AUTH_ENABLED env var):
+  - When disabled (default): all requests pass through, no key validation
+  - When enabled: validates API key, enforces tenant scoping, read-only, row-level policies
 """
 
 import json
@@ -10,6 +14,8 @@ import traceback
 import time
 from typing import Dict, Any
 from datetime import datetime
+
+from src.auth import authenticate, AuthContext
 
 # Use faster JSON library if available (3x faster)
 try:
@@ -31,7 +37,8 @@ from src.models import (
     CompactRequest,
     CreateTableRequest, ListTablesRequest, DescribeTableRequest,
     DropTableRequest, DropNamespaceRequest, ExportCsvRequest,
-    ExecuteSqlRequest, FederatedQueryRequest
+    ExecuteSqlRequest, FederatedQueryRequest,
+    VectorSearchRequest, VectorWriteRequest, VectorIndexRequest
 )
 # Use full Iceberg implementation with PyIceberg for writes and DuckDB for reads
 from src.operations_full_iceberg import DatabaseOperations
@@ -170,10 +177,27 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         operation = request_data.get('operation', '').upper()
         tenant_id = request_data.get('tenant_id', 'unknown')
         table_name = request_data.get('table', 'unknown')
-        
+
+        # ── Auth: validate API key, tenant scope, permissions ──────────
+        auth_ctx = authenticate(event, request_data)
+
+        if not auth_ctx.authenticated:
+            return error_response(401, 'Authentication required. Provide a valid x-api-key header or api_key in body.', request_id)
+
+        # Tenant scoping — key can only access its allowed tenant_ids
+        if tenant_id != 'unknown' and not auth_ctx.can_access_tenant(tenant_id):
+            print(f"✗ Auth: key '{auth_ctx.key_id}' denied access to tenant '{tenant_id}'")
+            return error_response(403, f'Access denied: key not authorized for tenant \'{tenant_id}\'', request_id)
+
+        # Read-only enforcement — reject write operations
+        if auth_ctx.is_read_only() and auth_ctx.is_write_operation(operation):
+            print(f"✗ Auth: read-only key '{auth_ctx.key_id}' attempted {operation}")
+            return error_response(403, f'Access denied: read-only key cannot perform {operation}', request_id)
+
         print(f"Operation: {operation}")
         print(f"Tenant ID: {tenant_id}")
         print(f"Table: {table_name}")
+        print(f"Auth: key_id={auth_ctx.key_id}, permissions={auth_ctx.permissions}")
 
         # Route to appropriate handler
         if operation == OperationType.QUERY:
@@ -255,6 +279,11 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             table_refs = set(re.findall(
                 r'(?:FROM|JOIN)\s+["\']?(\w+)["\']?', sql_upper
             ))
+
+            # Row-level policy: if auth key has row_policy, filter views by user_id
+            row_filter_col = auth_ctx.get_row_filter_column()
+            row_filter_val = auth_ctx.get_row_filter_value()
+
             if table_refs:
                 try:
                     catalog = ops._get_catalog()
@@ -265,9 +294,17 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                             try:
                                 table_id = f"{iceberg_ns}.{actual_name}"
                                 metadata_path = ops._get_metadata_path(table_id)
-                                ops.conn.execute(
-                                    f"CREATE OR REPLACE VIEW \"{actual_name}\" AS SELECT * FROM iceberg_scan('{metadata_path}')"
-                                )
+                                base_scan = f"SELECT * FROM iceberg_scan('{metadata_path}')"
+
+                                # Apply row-level filter when policy is active
+                                if row_filter_col and row_filter_val:
+                                    view_sql = f'CREATE OR REPLACE VIEW "{actual_name}" AS {base_scan} WHERE "{row_filter_col}" = ?'
+                                    ops.conn.execute(view_sql, [row_filter_val])
+                                    print(f"Auth: Row-level view for {actual_name} filtered by {row_filter_col}")
+                                else:
+                                    ops.conn.execute(
+                                        f'CREATE OR REPLACE VIEW "{actual_name}" AS {base_scan}'
+                                    )
                             except Exception as view_err:
                                 print(f"Warning: Could not register view for {actual_name}: {view_err}")
                 except Exception as catalog_err:
@@ -330,6 +367,27 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             finally:
                 engine.close()
 
+        elif operation == OperationType.VECTOR_SEARCH:
+            request = VectorSearchRequest(**request_data)
+            from src.operations_vector import VectorOperations
+            from src.operations_full_iceberg import get_iceberg_ops
+            vec_ops = VectorOperations(get_iceberg_ops)
+            result = vec_ops.vector_search(request)
+
+        elif operation == OperationType.VECTOR_WRITE:
+            request = VectorWriteRequest(**request_data)
+            from src.operations_vector import VectorOperations
+            from src.operations_full_iceberg import get_iceberg_ops
+            vec_ops = VectorOperations(get_iceberg_ops)
+            result = vec_ops.vector_write(request)
+
+        elif operation == OperationType.VECTOR_INDEX:
+            request = VectorIndexRequest(**request_data)
+            from src.operations_vector import VectorOperations
+            from src.operations_full_iceberg import get_iceberg_ops
+            vec_ops = VectorOperations(get_iceberg_ops)
+            result = vec_ops.vector_index(request)
+
         else:
             print(f"✗ Unknown operation: {operation}")
             return error_response(400, f'Unknown operation: {operation}', request_id)
@@ -351,10 +409,11 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         
         success = response_body.get('success', False)
         status_code = 200 if success else 400
-        
+
         print(f"\n{'='*60}")
         print(f"{'✓' if success else '✗'} Operation: {operation}")
         print(f"Status: {status_code}")
+        print(f"Auth: {auth_ctx.key_id}")
         print(f"Execution time: {execution_time_ms:.2f}ms")
         print(f"{'='*60}\n")
 
@@ -364,6 +423,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 'Content-Type': 'application/json',
                 'Access-Control-Allow-Origin': '*',
                 'X-Request-ID': request_id,
+                'X-Auth-Key-ID': auth_ctx.key_id,
                 'X-Execution-Time-Ms': str(round(execution_time_ms, 2))
             },
             'body': dumps_json(response_body, default=str)

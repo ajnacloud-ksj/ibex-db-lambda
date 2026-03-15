@@ -27,6 +27,7 @@ RUN mkdir -p /opt/duckdb_extensions && \
     conn.execute('INSTALL avro'); \
     conn.execute('INSTALL iceberg'); \
     conn.execute('INSTALL httpfs'); \
+    conn.execute('INSTALL vss'); \
     print('✓ DuckDB extensions installed')"
 
 # Verify extensions can be loaded
@@ -36,6 +37,7 @@ RUN python3 -c "import duckdb; \
     conn.execute('LOAD avro'); \
     conn.execute('LOAD iceberg'); \
     conn.execute('LOAD httpfs'); \
+    conn.execute('LOAD vss'); \
     print('✓ Extensions verified and loaded')"
 
 # Copy application code

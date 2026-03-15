@@ -43,6 +43,9 @@ class OperationType(str, Enum):
     EXPORT_CSV = "EXPORT_CSV"
     EXECUTE_SQL = "EXECUTE_SQL"
     FEDERATED_QUERY = "FEDERATED_QUERY"
+    VECTOR_SEARCH = "VECTOR_SEARCH"
+    VECTOR_WRITE = "VECTOR_WRITE"
+    VECTOR_INDEX = "VECTOR_INDEX"
 
 class SortOrder(str, Enum):
     """Sort order options"""
@@ -852,6 +855,70 @@ class FederatedQueryRequest(BaseModel):
     params: Optional[List[Any]] = Field(None, description="Query parameters")
     sources: Optional[Dict[str, Any]] = Field(None, description="Data source configuration overrides")
     timeout_ms: Optional[int] = Field(30000, description="Query timeout in milliseconds")
+
+
+# ============================================================================
+# Vector Operations
+# ============================================================================
+
+class VectorSearchRequest(BaseModel):
+    """Vector similarity search request"""
+    operation: Literal[OperationType.VECTOR_SEARCH] = OperationType.VECTOR_SEARCH
+    tenant_id: str
+    namespace: str = "default"
+    table: str = Field(..., description="Table containing vectors")
+    vector: List[float] = Field(..., description="Query vector")
+    k: int = Field(10, gt=0, le=1000, description="Number of nearest neighbors")
+    min_score: Optional[float] = Field(None, ge=0, le=1, description="Minimum cosine similarity score")
+    vector_column: str = Field("embedding", description="Column containing vectors")
+    filter: Optional[List[Filter]] = Field(None, description="Pre-filter before vector search")
+    projection: Optional[List[str]] = Field(None, description="Columns to return")
+
+class VectorSearchResponseData(BaseModel):
+    """Data structure for vector search results"""
+    matches: List[Dict[str, Any]] = Field(..., description="Matching records with scores")
+    total_matches: int
+
+class VectorSearchResponse(BaseResponse):
+    """Vector search operation response"""
+    data: Optional[VectorSearchResponseData] = None
+
+class VectorWriteRequest(BaseModel):
+    """Write vector embeddings to a table"""
+    operation: Literal[OperationType.VECTOR_WRITE] = OperationType.VECTOR_WRITE
+    tenant_id: str
+    namespace: str = "default"
+    table: str
+    records: List[Dict[str, Any]] = Field(..., description="Records containing vector_column field")
+    vector_column: str = Field("embedding", description="Column containing vectors")
+    dimensions: int = Field(1024, gt=0, le=4096, description="Vector dimensions")
+
+class VectorWriteResponseData(BaseModel):
+    """Data structure for vector write results"""
+    records_written: int
+
+class VectorWriteResponse(BaseResponse):
+    """Vector write operation response"""
+    data: Optional[VectorWriteResponseData] = None
+
+class VectorIndexRequest(BaseModel):
+    """Create HNSW index on a vector column"""
+    operation: Literal[OperationType.VECTOR_INDEX] = OperationType.VECTOR_INDEX
+    tenant_id: str
+    namespace: str = "default"
+    table: str
+    vector_column: str = Field("embedding")
+    metric: str = Field("cosine", description="Distance metric: cosine, l2, ip")
+    index_type: str = Field("hnsw", description="Index type (only hnsw supported)")
+
+class VectorIndexResponseData(BaseModel):
+    """Data structure for vector index creation results"""
+    index_created: bool
+    index_name: str
+
+class VectorIndexResponse(BaseResponse):
+    """Vector index creation response"""
+    data: Optional[VectorIndexResponseData] = None
 
 
 # Update forward references for new models

@@ -1,0 +1,54 @@
+{
+  "_comment": "IbexDB API Key Registry — scoped per-tenant with permissions and row-level policies",
+  "auth_enabled": true,
+  "keys": [
+    {
+      "key_id": "legacy-shared",
+      "key": "${IBEX_LEGACY_API_KEY}",
+      "description": "Legacy shared key (deprecated, remove after migration)",
+      "tenant_ids": ["*"],
+      "permissions": "read_write",
+      "row_policy": null,
+      "enabled": true
+    },
+    {
+      "key_id": "nutriwealth-prod",
+      "key": "${IBEX_NW_API_KEY}",
+      "description": "NutriWealth production — full read/write to nutriwealth namespace",
+      "tenant_ids": ["nutriwealth", "test_tenant"],
+      "permissions": "read_write",
+      "row_policy": null,
+      "enabled": true
+    },
+    {
+      "key_id": "greenbox-prod",
+      "key": "${IBEX_GB_API_KEY}",
+      "description": "GreenBox production — full read/write to greenbox namespaces",
+      "tenant_ids": ["greenbox", "greenbox_nalla", "tenant_a"],
+      "permissions": "read_write",
+      "row_policy": null,
+      "enabled": true
+    },
+    {
+      "key_id": "agent-engine-internal",
+      "key": "${IBEX_AE_API_KEY}",
+      "description": "Agent Engine — read/write own namespace only",
+      "tenant_ids": ["ibex_agent_engine"],
+      "permissions": "read_write",
+      "row_policy": null,
+      "enabled": true
+    },
+    {
+      "key_id": "agent-engine-query",
+      "key": "${IBEX_AE_QUERY_KEY}",
+      "description": "Agent Engine — read-only query access to tenant data with row-level user isolation",
+      "tenant_ids": ["nutriwealth"],
+      "permissions": "read_only",
+      "row_policy": {
+        "column": "user_id",
+        "source": "request_context"
+      },
+      "enabled": true
+    }
+  ]
+}
