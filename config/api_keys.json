@@ -5,11 +5,11 @@
     {
       "key_id": "legacy-shared",
       "key": "${IBEX_LEGACY_API_KEY}",
-      "description": "Legacy shared key (deprecated, remove after migration)",
+      "description": "Legacy shared key — DISABLED after migration to scoped keys (2026-03-15)",
       "tenant_ids": ["*"],
       "permissions": "read_write",
       "row_policy": null,
-      "enabled": true
+      "enabled": false
     },
     {
       "key_id": "nutriwealth-prod",
