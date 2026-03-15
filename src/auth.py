@@ -42,12 +42,14 @@ def _load_registry() -> Tuple[bool, Dict[str, Dict]]:
     if _key_registry is not None:
         return _auth_enabled, _key_registry
 
-    # Check env override first
-    if os.environ.get('IBEX_AUTH_ENABLED', '').lower() == 'false':
+    # Check env override first — env var takes priority over config file
+    env_auth = os.environ.get('IBEX_AUTH_ENABLED', '').lower()
+    if env_auth == 'false':
         _auth_enabled = False
         _key_registry = {}
         print("Auth: Disabled via IBEX_AUTH_ENABLED=false")
         return _auth_enabled, _key_registry
+    env_force_enabled = env_auth == 'true'
 
     config_path = Path(__file__).parent.parent / 'config' / 'api_keys.json'
     if not config_path.exists():
@@ -60,7 +62,7 @@ def _load_registry() -> Tuple[bool, Dict[str, Dict]]:
         with open(config_path) as f:
             config = json.load(f)
 
-        _auth_enabled = config.get('auth_enabled', True)
+        _auth_enabled = env_force_enabled or config.get('auth_enabled', False)
         _key_registry = {}
 
         for entry in config.get('keys', []):

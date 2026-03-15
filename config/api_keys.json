@@ -1,6 +1,6 @@
 {
   "_comment": "IbexDB API Key Registry — scoped per-tenant with permissions and row-level policies",
-  "auth_enabled": true,
+  "auth_enabled": false,
   "keys": [
     {
       "key_id": "legacy-shared",
