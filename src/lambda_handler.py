@@ -298,9 +298,11 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
                                 # Apply row-level filter when policy is active
                                 if row_filter_col and row_filter_val:
-                                    view_sql = f'CREATE OR REPLACE VIEW "{actual_name}" AS {base_scan} WHERE "{row_filter_col}" = ?'
-                                    ops.conn.execute(view_sql, [row_filter_val])
-                                    print(f"Auth: Row-level view for {actual_name} filtered by {row_filter_col}")
+                                    # Sanitize: only allow alphanumeric, hyphens, underscores, dots, @
+                                    safe_val = ''.join(c for c in row_filter_val if c.isalnum() or c in '-_.@')
+                                    view_sql = f'CREATE OR REPLACE VIEW "{actual_name}" AS {base_scan} WHERE "{row_filter_col}" = \'{safe_val}\''
+                                    ops.conn.execute(view_sql)
+                                    print(f"Auth: Row-level view for {actual_name} filtered by {row_filter_col}={safe_val}")
                                 else:
                                     ops.conn.execute(
                                         f'CREATE OR REPLACE VIEW "{actual_name}" AS {base_scan}'
