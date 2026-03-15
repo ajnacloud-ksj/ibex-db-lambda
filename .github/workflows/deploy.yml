@@ -29,4 +29,5 @@ jobs:
       lambda-function-name: ibex-db-lambda
       image-uri: ${{ needs.build-and-push.outputs.image-uri }}
       role-to-assume: arn:aws:iam::808527335982:role/GitHubActions-Deploy-Role
-      environment-variables: "ENVIRONMENT=production,BUCKET_NAME=ajna-ibex-db-warehouse--aps1-az1--x-s3,UPLOAD_BUCKET_NAME=ajna-ibex-db-warehouse,AWS_ACCOUNT_ID=808527335982,IBEX_AUTH_ENABLED=${{ vars.IBEX_AUTH_ENABLED || 'false' }},IBEX_LEGACY_API_KEY=${{ secrets.IBEX_LEGACY_API_KEY }},IBEX_NW_API_KEY=${{ secrets.IBEX_NW_API_KEY }},IBEX_GB_API_KEY=${{ secrets.IBEX_GB_API_KEY }},IBEX_AE_API_KEY=${{ secrets.IBEX_AE_API_KEY }},IBEX_AE_QUERY_KEY=${{ secrets.IBEX_AE_QUERY_KEY }}"
+      environment-variables: "ENVIRONMENT=production,BUCKET_NAME=ajna-ibex-db-warehouse--aps1-az1--x-s3,UPLOAD_BUCKET_NAME=ajna-ibex-db-warehouse,AWS_ACCOUNT_ID=808527335982,IBEX_AUTH_ENABLED=${{ vars.IBEX_AUTH_ENABLED || 'false' }}"
+    secrets: inherit
