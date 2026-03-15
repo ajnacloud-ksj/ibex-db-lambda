@@ -1431,9 +1431,17 @@ class FullIcebergOperations:
             files_before = len(list(table.scan().plan_files()))
             table.delete(combined_filter)
 
+            # Invalidate metadata cache so subsequent queries see the new snapshot
+            cache_key = table_identifier
+            if cache_key in self._metadata_cache:
+                del self._metadata_cache[cache_key]
+
             # Reload table to get updated file count
             table = self._get_catalog().load_table(table_identifier)
             files_after = len(list(table.scan().plan_files()))
+
+            # Update cache with new metadata path
+            self._metadata_cache[cache_key] = (table.metadata_location, time.time())
 
             print(f"✓ Hard deleted {records_to_delete} records from {request.table}")
             print(f"  Files rewritten: {files_before - files_after}")
