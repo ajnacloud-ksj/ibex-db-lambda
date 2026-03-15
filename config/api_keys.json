@@ -39,6 +39,15 @@
       "enabled": true
     },
     {
+      "key_id": "musicpractice-prod",
+      "key": "${IBEX_MP_API_KEY}",
+      "description": "Music Practice — full read/write to musicpractice namespace",
+      "tenant_ids": ["musicpractice"],
+      "permissions": "read_write",
+      "row_policy": null,
+      "enabled": true
+    },
+    {
       "key_id": "agent-engine-query",
       "key": "${IBEX_AE_QUERY_KEY}",
       "description": "Agent Engine — read-only query access to tenant data with row-level user isolation",
