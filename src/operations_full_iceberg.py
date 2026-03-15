@@ -122,11 +122,11 @@ class FullIcebergOperations:
             
             # Initialize metadata cache for query performance
             self._metadata_cache = {}
-            self._cache_ttl = 3600  # 1 hour cache - dramatically reduces Glue API costs
+            self._cache_ttl = 60  # 60s cache - balances Glue costs vs write consistency
 
             # Initialize query result cache for repeated queries
             self._query_cache = {}
-            self._query_cache_ttl = 600  # 10 minutes for query results - reduces S3 costs
+            self._query_cache_ttl = 30  # 30s for query results - keeps reads fresh after writes
             print(f"✓ Query cache initialized (TTL: {self._cache_ttl}s, Result cache: {self._query_cache_ttl}s)")
 
             # Cost optimization: Track cache effectiveness
@@ -683,10 +683,12 @@ class FullIcebergOperations:
 
             print(f"✓ Wrote {len(enriched_records)} records to {table_identifier}")
 
-            # Invalidate metadata cache to ensure immediate consistency for this container
+            # Invalidate metadata + query caches for immediate consistency
             if table_identifier in self._metadata_cache:
                 del self._metadata_cache[table_identifier]
-
+            stale_keys = [k for k in self._query_cache if request.table in k]
+            for k in stale_keys:
+                del self._query_cache[k]
 
             # Opportunistic compaction check (non-blocking)
             compaction_recommended = False
@@ -1296,11 +1298,13 @@ class FullIcebergOperations:
                 print(f"✗ Failed to append during UPDATE: {e}")
                 raise
 
-            # Invalidate metadata cache to ensure immediate consistency
-            # Without this, queries will use stale cached metadata and won't see the updates
+            # Invalidate metadata + query caches to ensure immediate consistency
             if table_identifier in self._metadata_cache:
                 del self._metadata_cache[table_identifier]
-                print(f"✓ Invalidated cache for {table_identifier} after UPDATE")
+            stale_keys = [k for k in self._query_cache if request.table in k]
+            for k in stale_keys:
+                del self._query_cache[k]
+            print(f"✓ Invalidated caches for {table_identifier} after UPDATE")
 
             # Count only the actual updates (not delete markers)
             actual_updates = len(records) if records else 0
@@ -1431,16 +1435,20 @@ class FullIcebergOperations:
             files_before = len(list(table.scan().plan_files()))
             table.delete(combined_filter)
 
-            # Invalidate metadata cache so subsequent queries see the new snapshot
+            # Invalidate metadata + query caches so subsequent queries see the new snapshot
             cache_key = table_identifier
             if cache_key in self._metadata_cache:
                 del self._metadata_cache[cache_key]
+            # Purge all cached query results for this table
+            stale_keys = [k for k in self._query_cache if request.table in k]
+            for k in stale_keys:
+                del self._query_cache[k]
 
             # Reload table to get updated file count
             table = self._get_catalog().load_table(table_identifier)
             files_after = len(list(table.scan().plan_files()))
 
-            # Update cache with new metadata path
+            # Update metadata cache with new snapshot path
             self._metadata_cache[cache_key] = (table.metadata_location, time.time())
 
             print(f"✓ Hard deleted {records_to_delete} records from {request.table}")
