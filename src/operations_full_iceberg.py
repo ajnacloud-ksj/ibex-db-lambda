@@ -1842,10 +1842,10 @@ class FullIcebergOperations:
                 WHERE _tenant_id = '{request.tenant_id}'
             """
 
-            # Read data using DuckDB
-            result_df = self.conn.execute(sql).fetchdf()
+            # Read data using DuckDB directly into PyArrow (no pandas)
+            arrow_table = self.conn.execute(sql).fetch_arrow_table()
 
-            if result_df.empty:
+            if arrow_table.num_rows == 0:
                 from src.models import CompactResponseData, ResponseMetadata
                 return CompactResponse(
                     success=True,
@@ -1857,9 +1857,6 @@ class FullIcebergOperations:
                     metadata=ResponseMetadata(request_id="temp", execution_time_ms=0),
                     error=None
                 )
-
-            # Convert to PyArrow table
-            arrow_table = pa.Table.from_pandas(result_df)
 
             # Get Iceberg schema
             iceberg_schema = table.schema().as_arrow()
